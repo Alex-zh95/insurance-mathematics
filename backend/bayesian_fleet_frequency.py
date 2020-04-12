@@ -13,11 +13,15 @@ Required format of collateral data: (nx2)-table with column names "Client", "Cla
 """
 
 import pandas as pd
-
+import numpy as np
 from scipy import stats
 from scipy.optimize import minimize
 
 import argparse # Commandline parsing tool
+
+# Parallel processing
+from joblib import Parallel, delayed
+import multiprocessing
 
 # Commandline parsing init
 parser = argparse.ArgumentParser(description="Calculate a credibility premium based on provided collateral data as well as particular risk.")
@@ -52,12 +56,13 @@ def gnlogl(theta, x):
     """
     Negative of the loglikelihood function for Gamma distribution.
     """
-    s = 0
+    # Get the number of available processors - will utilize half
+    u_cores = int(multiprocessing.cpu_count() / 2)
+
     alpha = theta[0]
     beta = theta[1]
-    for i in range(len(x)):
-        s -= stats.gamma.logpdf(x[i], a=alpha, loc=0, scale=1/beta) # Python "scale" is actually rate
-    return s
+    s_vect = Parallel(n_jobs=u_cores)(delayed(stats.gamma.logpdf)(xi, a=alpha, loc=0, scale=1/beta) for xi in x)
+    return -np.sum(s_vect)
 
 # Get initial guess with method of moments
 alpha_start = collateral_data["Claim_frequency"].mean()**2 / collateral_data["Claim_frequency"].var()
