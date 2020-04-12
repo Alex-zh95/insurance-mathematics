@@ -17,13 +17,22 @@ import pandas as pd
 from scipy import stats
 from scipy.optimize import minimize
 
+import argparse # Commandline parsing tool
+
+# Commandline parsing init
+parser = argparse.ArgumentParser(description="Calculate a credibility premium based on provided collateral data as well as particular risk.")
+parser.add_argument('-r', type=str, help="Path to file containing claims info on risk to price")
+parser.add_argument('-c', type=str, help="Path to file containing collateral information")
+parser.add_argument('-d', type=str, help="Decimal separator used in files, default is '.'", default=".")
+args = parser.parse_args()
+
 # Display format for dataframes
 pd.options.display.float_format = '{:,.2f}'.format
 
 # 1. IMPORT AND PRESENT RISKS
-risk_file = "./Fakedata/RISK_FILE.csv"
-collateral_file = "./Fakedata/COLLATERAL_FILE.csv"
-decimal_encoding = "," # Depends on if using decimal commas or points
+risk_file = args.r 
+collateral_file = args.c 
+decimal_encoding = args.d 
 
 risk_data = pd.read_csv(risk_file, decimal=decimal_encoding)
 collateral_data = pd.read_csv(collateral_file, decimal=decimal_encoding)
