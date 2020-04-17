@@ -1,5 +1,5 @@
 """
-Filename:   bayes_freq.py
+Filename:   bayes_fleet_frequency.py
 Author:     Alex-zh
 
 Date:       2020-04-12
