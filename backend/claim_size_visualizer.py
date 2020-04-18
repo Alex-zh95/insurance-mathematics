@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 from scipy import stats
 from scipy.optimize import minimize
@@ -22,9 +21,50 @@ from scipy.optimize import minimize
 from joblib import Parallel, delayed
 import multiprocessing
 
-file = "./Fakedata/INDIVIDUAL_CLAIMS.csv"
-decimal_encoding = "."
+# Impoort argument parser
+import argparse
+
+# Commandline parsing init
+parser = argparse.ArgumentParser(description="Visualize and suggest distribution that best fits the claim severity")
+parser.add_argument('-r', type=str, help="Path to file containing claims file")
+parser.add_argument('-d', type=str, help="Decimal separator used in files, default is '.'", default=".")
+
+# Enable limits of indemnity to remove outliers with 0 default meaning no limit
+parser.add_argument('--adl', type=int, help="AD severity limit", default=0)
+parser.add_argument('--tppil', type=int, help="TPPI severity limit", default=0)
+parser.add_argument('--tppdl', type=int, help="TPPD severity limit", default=0)
+
+args = parser.parse_args()
+
+file = args.r
+decimal_encoding = args.d
 df = pd.read_csv(file, decimal=decimal_encoding)
+
+def clip(x, level):
+    """
+    Clips data at the maximum level, by setting all values >= level as 0
+    """
+    if x >= level:
+        return 0
+    else:
+        return x
+
+# Set limits when needed - set invalid entries to 0, so they are removed
+u_cores = int(multiprocessing.cpu_count() / 2)
+if args.adl > 0:
+    temp = df['AD_Total'].values
+    t_vect = Parallel(n_jobs=u_cores)(delayed(clip)(t, args.adl) for t in temp)
+    df['AD_Total'] = t_vect
+
+if args.tppil > 0:
+    temp = df['TPPI_Total'].values
+    t_vect = Parallel(n_jobs=u_cores)(delayed(clip)(t, args.tppil) for t in temp)
+    df['TPPI_Total'] = t_vect
+    
+if args.tppdl > 0:
+    temp = df['TPPD_Total'].values
+    t_vect = Parallel(n_jobs=u_cores)(delayed(clip)(t, args.tppdl) for t in temp)
+    df['TPPD_Total'] = t_vect
 
 # Require valid data (i.e. no non-positives)
 df_new = df[df>0]
@@ -32,13 +72,6 @@ if (len(df_new) < len(df)):
     print("Invalid data (non-positive values) have been found and excluded from analysis.")
 df = df_new
 del df_new
-
-# Plot histograms
-fig, ax = plt.subplots(1,3, figsize=(15,5))
-sns.distplot(df['AD_Total'], kde=False, ax=ax[0])
-sns.distplot(df['TPPI_Total'], kde=False, ax=ax[1])
-sns.distplot(df['TPPD_Total'], kde=False, ax=ax[2])
-fig.show()
 
 # Set up negative log-likelihood functions for the usual distributions: Gamma and Lognormal
 
