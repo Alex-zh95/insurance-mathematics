@@ -100,43 +100,45 @@ def lognorm_logl(theta, x):
     return -np.sum(s_vect)
 
 # Function for fitting the Gamma distribution
-def gamma_mle(df, column):
-    alpha_start = df[column].mean()**2 / df[column].var()
-    beta_start = df[column].mean()**2 / df[column].var()
+def gamma_mle(series):
+    alpha_start = series.mean()**2 / series.var()
+    beta_start = series.mean()**2 / series.var()
     theta_start = [alpha_start, beta_start]
 
-    ad_output = minimize(gnlogl, x0=theta_start, args=(df[column]), method="Nelder-Mead")
+    ad_output = minimize(gnlogl, x0=theta_start, args=(series), method="Nelder-Mead")
     return ad_output
 
 # Function for fitting lognormal distribution
-def lognorm_mle(df, column):
-    mu_start = np.mean(np.log(df[column].values))
-    sigma_start = np.std(np.log(df[column].values))
+def lognorm_mle(series):
+    mu_start = np.mean(np.log(series.values))
+    sigma_start = np.std(np.log(series.values))
     theta_start = [mu_start, sigma_start]
 
-    ad_output = minimize(lognorm_logl, x0=theta_start, args=(df[column]), method="Nelder-Mead")
+    ad_output = minimize(lognorm_logl, x0=theta_start, args=(series), method="Nelder-Mead")
     return ad_output
 
 print("\n")
+ad_df = df['AD_Total'].dropna()
+
 print("Fitting the Gamma distribution to the AD data")
-ad_gfit = gamma_mle(df, 'AD_Total')
+ad_gfit = gamma_mle(ad_df)
 ad_gParams = [ad_gfit.x[0], 0, ad_gfit.x[1]]
 print("Gamma shape\t:", format(ad_gParams[0], ".3f"))
 print("Gamma scale\t:", format(ad_gParams[2], ".3f"))
 
 # Evaluation with the KS test
-ad_gRes = stats.kstest(df['AD_Total'], 'gamma', args=ad_gParams)
+ad_gRes = stats.kstest(ad_df, 'gamma', args=ad_gParams)
 print("KS Statistic\t:", format(ad_gRes.statistic, ".3f"))
 print("KS p-value\t:", format(ad_gRes.pvalue, ".3f"))
 
 print("Fitting the Lognormal distribution to the AD data")
-ad_lnfit = lognorm_mle(df, 'AD_Total')
-ad_lnParams = [ad_lnfit.x[0], 1, ad_lnfit.x[1]]
+ad_lnfit = lognorm_mle(ad_df)
+ad_lnParams = [ad_lnfit.x[0], 0, ad_lnfit.x[1]]
 print("Lognormal mu\t:", format(ad_lnParams[0], ".3f"))
 print("Lognormal sigma\t:", format(ad_lnParams[2], ".3f"))
 
 # Evaluation with the KS test
-ad_lnRes = stats.kstest(df['AD_Total'], 'lognorm', args=ad_lnParams)
+ad_lnRes = stats.kstest(ad_df, 'lognorm', args=ad_lnParams)
 print("KS Statistic\t:", format(ad_lnRes.statistic, ".3f"))
 print("KS p-value\t:", format(ad_lnRes.pvalue, ".3f"))
 
@@ -152,25 +154,27 @@ else:
 
 # TPPD Data
 print("\n")
+tppd_df = df['TPPD_Total'].dropna()
+
 print("Fitting the Gamma distribution to the TPPD data")
-tppd_gfit = gamma_mle(df, 'TPPD_Total')
-tppd_gParams = [tppd_gfit.x[0], 1, 1/tppd_gfit.x[1]] # We have fitted rate, Python lib uses scale = 1/rate
+tppd_gfit = gamma_mle(tppd_df)
+tppd_gParams = [tppd_gfit.x[0], 0, 1/tppd_gfit.x[1]] # We have fitted rate, Python lib uses scale = 1/rate
 print("Gamma shape\t:", format(tppd_gParams[0], ".3f"))
 print("Gamma scale\t:", format(tppd_gParams[2], ".3f"))
 
 # Evaluation with the KS test
-tppd_gRes = stats.kstest(df['TPPD_Total'], 'gamma', args=tppd_gParams)
+tppd_gRes = stats.kstest(tppd_df, 'gamma', args=tppd_gParams)
 print("KS Statistic\t:", format(tppd_gRes.statistic, ".3f"))
 print("KS p-value\t:", format(tppd_gRes.pvalue, ".3f"))
 
 print("Fitting the Lognormal distribution to the TPPD data")
-tppd_lnfit = lognorm_mle(df, 'TPPD_Total')
+tppd_lnfit = lognorm_mle(tppd_df)
 tppd_lnParams = [tppd_lnfit.x[0], 0, tppd_lnfit.x[1]]
 print("Lognormal mu\t:", format(tppd_lnParams[0], ".3f"))
 print("Lognormal sigma\t:", format(tppd_lnParams[2], ".3f"))
 
 # Evaluation with the KS test
-tppd_lnRes = stats.kstest(df['TPPD_Total'], 'lognorm', args=tppd_lnParams)
+tppd_lnRes = stats.kstest(tppd_df, 'lognorm', args=tppd_lnParams)
 print("KS Statistic\t:", format(tppd_lnRes.statistic, ".3f"))
 print("KS p-value\t:", format(tppd_lnRes.pvalue, ".3f"))
 
@@ -185,26 +189,27 @@ else:
     print("Both distributions provide a reasonable fit.")
 
 # TPPI Data
+tppi_df = df['TPPI_Total'].dropna()
 print("\n")
 print("Fitting the Gamma distribution to the TPPI data")
-tppi_gfit = gamma_mle(df, 'TPPI_Total')
+tppi_gfit = gamma_mle(tppi_df)
 tppi_gParams = [tppi_gfit.x[0], 0, tppi_gfit.x[1]]
 print("Gamma shape\t:", format(tppi_gParams[0], ".3f"))
 print("Gamma scale\t:", format(tppi_gParams[2], ".3f"))
 
 # Evaluation with the KS test
-tppi_gRes = stats.kstest(df['TPPI_Total'], 'gamma', args=tppi_gParams)
+tppi_gRes = stats.kstest(tppi_df, 'gamma', args=tppi_gParams)
 print("KS Statistic\t:", format(tppi_gRes.statistic, ".3f"))
 print("KS p-value\t:", format(tppi_gRes.pvalue, ".3f"))
 
 print("Fitting the Lognormal distribution to the TPPI data")
-tppi_lnfit = lognorm_mle(df, 'TPPI_Total')
-tppi_lnParams = [tppi_lnfit.x[0], 1, tppi_lnfit.x[1]]
+tppi_lnfit = lognorm_mle(tppi_df)
+tppi_lnParams = [tppi_lnfit.x[0], 0, tppi_lnfit.x[1]]
 print("Lognormal mu\t:", format(tppi_lnParams[0], ".3f"))
 print("Lognormal sigma\t:", format(tppi_lnParams[2], ".3f"))
 
 # Evaluation with the KS test
-tppi_lnRes = stats.kstest(df['TPPI_Total'], 'lognorm', args=tppi_lnParams)
+tppi_lnRes = stats.kstest(tppi_df, 'lognorm', args=tppi_lnParams)
 print("KS Statistic\t:", format(tppi_lnRes.statistic, ".3f"))
 print("KS p-value\t:", format(tppi_lnRes.pvalue, ".3f"))
 
@@ -222,8 +227,8 @@ else:
 fig, ax = plt.subplots(1,3, figsize=(15,5))
 p = np.linspace(0.001, 0.999, 999)
 
-ax[0].hist(df['AD_Total'], density=True, label="Empirical", color="lightblue")
-x = np.linspace(df['AD_Total'].min(), df['AD_Total'].max(), 1000)
+ax[0].hist(ad_df, density=True, label="Empirical", color="lightblue")
+x = np.linspace(ad_df.min(), ad_df.max(), 1000)
 pg = stats.gamma.pdf(x, ad_gParams[0], ad_gParams[1], ad_gParams[2])
 pln = stats.lognorm.pdf(x, ad_lnParams[0], ad_lnParams[1], ad_lnParams[2])
 ax[0].plot(x, pg, color="red", label="Gamma")
@@ -233,8 +238,8 @@ ax[0].set_title("AD Claims Distribution")
 ax[0].set_xlabel("Claim Severity")
 ax[0].set_ylabel("p")
 
-ax[1].hist(df['TPPI_Total'], density=True, label="Empirical", color="lightblue")
-x = np.linspace(df['TPPI_Total'].min(), df['TPPI_Total'].max(), 1000)
+ax[1].hist(tppi_df, density=True, label="Empirical", color="lightblue")
+x = np.linspace(tppi_df.min(), tppd_df.max(), 1000)
 pg = stats.gamma.pdf(x, tppi_gParams[0], tppi_gParams[1], tppi_gParams[2])
 pln = stats.lognorm.pdf(x, tppi_lnParams[0], tppi_lnParams[1], tppi_lnParams[2])
 ax[1].plot(x, pg, color="red", label="Gamma")
@@ -244,8 +249,8 @@ ax[1].set_title("TPPI Claims Distribution")
 ax[1].set_xlabel("Claim Severity")
 ax[1].set_ylabel("p")
 
-ax[2].hist(df['TPPD_Total'], density=True, label="Empirical", color="lightblue")
-x = np.linspace(df['TPPD_Total'].min(), df['TPPD_Total'].max(), 1000)
+ax[2].hist(tppd_df, density=True, label="Empirical", color="lightblue")
+x = np.linspace(tppd_df.min(), tppd_df.max(), 1000)
 pg = stats.gamma.pdf(x, tppd_gParams[0], tppd_gParams[1], tppd_gParams[2])
 pln = stats.lognorm.pdf(x, tppd_lnParams[0], tppd_lnParams[1], tppd_lnParams[2])
 ax[2].plot(x, pg, color="red", label="Gamma")
