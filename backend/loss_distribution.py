@@ -45,7 +45,7 @@ s_dist = "lognorm"
 ## Discretize the severity distribution
 def discretize_pdf(k, h, severity_distribution, params):
     if severity_distribution == "lognorm":
-        pdf = stats.lognorm.cdf(k*h+h/2, s=params[0], scale=np.exp(params[1])) - stats.lognorm.cdf(k*h-h/2, s=params[0], scale=np.exp(params[1]))
+        pdf = stats.lognorm.cdf(k*h+h/2, s=params[0], scale=params[1]) - stats.lognorm.cdf(k*h-h/2, s=params[0], scale=params[1])
     elif severity_distribution == "gamma":
         pdf = stats.gamma.cdf(k*h+h/2, a=params[0], scale=1/params[1]) - stats.gamma.cdf(k*h-h/2, a=params[0], scale=1/params[1])
     elif severity_distribution == "pareto":
