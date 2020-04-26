@@ -1,0 +1,10 @@
+{"insurance_structure":
+    {"Number_of_claims": 254,
+     "Claim_unit_probability": 0.509,
+     "Limit_of_liability": 5000000,
+     "Excess": 100,
+     "Severity_distribution": "lognorm",
+     "Severity_param0": 1.23,
+     "Severity_param1": 595.85
+    }
+}

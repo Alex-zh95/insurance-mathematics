@@ -17,6 +17,20 @@ from scipy import stats
 import multiprocessing
 from joblib import Parallel, delayed
 
+import argparse, json
+
+# Get the input arguments to the json file containing the insurance parameters
+parser = argparse.ArgumentParser(description="Generate an aggregate loss distribution estimate using FFT.")
+
+parser.add_argument('-i', type=str, help="Path to insurance structure JSON.")
+args = parser.parse_args()
+
+json_file = args.i
+
+# Load the json file
+with open(json_file) as file:
+    insurance_structure = json.load(file)['insurance_structure']
+
 # Parallel processing
 u_cores = int(multiprocessing.cpu_count() / 2)
 
@@ -25,22 +39,22 @@ M = int(2**17) # Grid size (best to choose a power of 2 for speed improvements f
 h = 50 # Grid step size
 
 # Exposure and probability of claim - frequency parameters
-N = 254
-pr = 0.509
+N = insurance_structure['Number_of_claims']
+pr = insurance_structure['Claim_unit_probability']
 
 # Calculate the count
 fLambda = N*pr
 
 # Insurance parameters
-Limit = 5e6 # Limit of liability - needs to be a multiple of h
-Excess = 100 # Also needs to be a multiple of h
+Limit = insurance_structure['Limit_of_liability'] # Limit of liability - needs to be a multiple of h
+Excess = insurance_structure['Excess'] # Also needs to be a multiple of h
 
 Limit_h = int(Limit/h)
 Excess_h = int(Excess/h)
 
 # Severity parameters
-s_params = [np.sqrt(2.38), 6.39]
-s_dist = "lognorm"
+s_params = [insurance_structure['Severity_param0'], insurance_structure['Severity_param1']]
+s_dist = insurance_structure['Severity_distribution']
 
 ## Discretize the severity distribution
 def discretize_pdf(k, h, severity_distribution, params):
