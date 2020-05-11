@@ -9,16 +9,26 @@ Using an assumed observed exponential distribution for reporting delays, calcula
 The observed exponential distribution is likely to be biased as we can never observe the delays that are longer than observed, trivially - hence unbiasing will be done with Bayesian techniques.
 
 Source: Parodi, Pietro: "Triangle-free reserving: a non-traditional framework for estimating reserves and reserve uncertainty.", Date: 2013-02-04, Presented to the Institute and Faculty of Actuaries.
-
-Plan:
-After testing, will make into a standard script by importing data from CSV or parameters from JSON with printed outputs exported either to CSV or JSON.
 """
 
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.optimize import newton # Newton-Raphson and related methods for root-finding
+from scipy.optimize import newton # Secant method of root finding
+import json
+import argparse
+
+parser = argparse.ArgumentParser(description="Calculate IBNR on the assumption that reporting delays behave according to an exponential distribution")
+parser.add_argument('-r', type=str, help="Path to file containing policy information JSON")
+
+args = parser.parse_args()
+
+json_file = args.r
+
+# Import
+with open(json_file) as file:
+    policy = json.load(file)['policy_data']
 
 # To unbias the observed parameter, find the roots of the following function
 def __t_avg(t_True, t_Obs, a):
@@ -27,13 +37,13 @@ def __t_avg(t_True, t_Obs, a):
 #%%
 
 # OBSERVED PARAMETERS - Time parameters in years
-tObserved = 0.9
-upper = 2
+tObserved = policy['Average_reporting_delay']
+upper = policy['Policy_length']
 
 # Method requires an initial guess - as we prognose the true value to be slightly above tObserved, we add a small amount to tObserved
 t0 = tObserved + 0.01
 
-# Plot the Bayesian unbiasing function to see visually where we have roots (Newton-Raphson methods do not always converge)
+# Plot the Bayesian unbiasing function to see visually where we have roots (Newton and secant methods do not unconditionally converge)
 
 x = np.linspace(0,upper,500)
 y = __t_avg(x, tObserved, upper)
@@ -53,10 +63,8 @@ print("Calculated true average delay:", format(tTrue,".3f"))
 def project(reported_tUpper, project_tUpper, param, reported_count):
     return reported_count * (project_tUpper / (project_tUpper - param * ( np.exp((project_tUpper - reported_tUpper)/param) - np.exp(-reported_tUpper/param))))
 
-print("Testing case. Suppose we have a general liability risk with observed average reporting delay of 0.9 years. Number of claims for policy year is 4.")
 reported = 4 
-out = project(upper, 0.9*upper, tTrue, reported)
-print("Including uplift:", format(out, ".3f"))
-
-
-# %%
+out = project(policy['Reporting_years'], policy['Policy_length'], tTrue, policy['Total_claims'])
+print("Uplifted:", format(out, ".3f"))
+print("IBNR:", format(out - policy['Total_claims'], ".3f"))
+print("Standard error:", format(np.sqrt(out - policy['Total_claims']), ".3f"))
