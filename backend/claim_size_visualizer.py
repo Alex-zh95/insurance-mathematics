@@ -4,7 +4,7 @@ Author:     Alex-zh
 
 Date:       2020-04-15
 
-From a list of claims, provide plots of the empirical distribution to give insight/intuition to the claims seen. Standard distributions are suggested with visualizations to observe goodness-of-fits.
+From a list of claims, provide plots of the empirical distribution to give insight/intuition to the claims seen.
 
 Input file expects the following columns ['AD_Total', 'TPPD_Total', 'TPPI_Total'] 
 """
@@ -126,31 +126,11 @@ ad_gParams = [ad_gfit.x[0], 0, ad_gfit.x[1]]
 print("Gamma shape\t:", format(ad_gParams[0], ".3f"))
 print("Gamma scale\t:", format(ad_gParams[2], ".3f"))
 
-# Evaluation with the KS test
-ad_gRes = stats.kstest(ad_df, 'gamma', args=ad_gParams)
-print("KS Statistic\t:", format(ad_gRes.statistic, ".3f"))
-print("KS p-value\t:", format(ad_gRes.pvalue, ".3f"))
-
 print("Fitting the Lognormal distribution to the AD data")
 ad_lnfit = lognorm_mle(ad_df)
 ad_lnParams = [ad_lnfit.x[0], 0, ad_lnfit.x[1]]
 print("Lognormal mu\t:", format(ad_lnParams[0], ".3f"))
 print("Lognormal sigma\t:", format(ad_lnParams[2], ".3f"))
-
-# Evaluation with the KS test
-ad_lnRes = stats.kstest(ad_df, 'lognorm', args=ad_lnParams)
-print("KS Statistic\t:", format(ad_lnRes.statistic, ".3f"))
-print("KS p-value\t:", format(ad_lnRes.pvalue, ".3f"))
-
-# Suggest the better fit by observing the distribution with the higher p-value
-if ad_lnRes.pvalue > ad_gRes.pvalue:
-    print("Recommended distribution: lognormal")
-    ad_dist = "lognormal"
-elif ad_lnRes.pvalue < ad_gRes.pvalue:
-    print("Recommended distribution: gamma")
-    ad_dist = "gamma"
-else:
-    print("Both distributions provide a reasonable fit.")
 
 # TPPD Data
 print("\n")
@@ -162,31 +142,11 @@ tppd_gParams = [tppd_gfit.x[0], 0, 1/tppd_gfit.x[1]] # We have fitted rate, Pyth
 print("Gamma shape\t:", format(tppd_gParams[0], ".3f"))
 print("Gamma scale\t:", format(tppd_gParams[2], ".3f"))
 
-# Evaluation with the KS test
-tppd_gRes = stats.kstest(tppd_df, 'gamma', args=tppd_gParams)
-print("KS Statistic\t:", format(tppd_gRes.statistic, ".3f"))
-print("KS p-value\t:", format(tppd_gRes.pvalue, ".3f"))
-
 print("Fitting the Lognormal distribution to the TPPD data")
 tppd_lnfit = lognorm_mle(tppd_df)
 tppd_lnParams = [tppd_lnfit.x[0], 0, tppd_lnfit.x[1]]
 print("Lognormal mu\t:", format(tppd_lnParams[0], ".3f"))
 print("Lognormal sigma\t:", format(tppd_lnParams[2], ".3f"))
-
-# Evaluation with the KS test
-tppd_lnRes = stats.kstest(tppd_df, 'lognorm', args=tppd_lnParams)
-print("KS Statistic\t:", format(tppd_lnRes.statistic, ".3f"))
-print("KS p-value\t:", format(tppd_lnRes.pvalue, ".3f"))
-
-# Suggest the better fit by observing the distribution with the higher p-value
-if tppd_lnRes.pvalue > tppd_gRes.pvalue:
-    print("Recommended distribution: lognormal")
-    tppd_dist = "lognormal"
-elif tppd_lnRes.pvalue < tppd_gRes.pvalue:
-    print("Recommended distribution: gamma")
-    tppd_dist = "gamma"
-else:
-    print("Both distributions provide a reasonable fit.")
 
 # TPPI Data
 tppi_df = df['TPPI_Total'].dropna()
@@ -197,31 +157,11 @@ tppi_gParams = [tppi_gfit.x[0], 0, tppi_gfit.x[1]]
 print("Gamma shape\t:", format(tppi_gParams[0], ".3f"))
 print("Gamma scale\t:", format(tppi_gParams[2], ".3f"))
 
-# Evaluation with the KS test
-tppi_gRes = stats.kstest(tppi_df, 'gamma', args=tppi_gParams)
-print("KS Statistic\t:", format(tppi_gRes.statistic, ".3f"))
-print("KS p-value\t:", format(tppi_gRes.pvalue, ".3f"))
-
 print("Fitting the Lognormal distribution to the TPPI data")
 tppi_lnfit = lognorm_mle(tppi_df)
 tppi_lnParams = [tppi_lnfit.x[0], 0, tppi_lnfit.x[1]]
 print("Lognormal mu\t:", format(tppi_lnParams[0], ".3f"))
 print("Lognormal sigma\t:", format(tppi_lnParams[2], ".3f"))
-
-# Evaluation with the KS test
-tppi_lnRes = stats.kstest(tppi_df, 'lognorm', args=tppi_lnParams)
-print("KS Statistic\t:", format(tppi_lnRes.statistic, ".3f"))
-print("KS p-value\t:", format(tppi_lnRes.pvalue, ".3f"))
-
-# Suggest the better fit by observing the distribution with the higher p-value
-if tppi_lnRes.pvalue > tppi_gRes.pvalue:
-    print("Recommended distribution: lognormal")
-    tppi_dist = "lognormal"
-elif tppi_lnRes.pvalue < tppi_gRes.pvalue:
-    print("Recommended distribution: gamma")
-    tppi_dist = "gamma"
-else:
-    print("Neither provides a better fit")
 
 # Plot histograms (densities) with the selected fitting distributions
 fig, ax = plt.subplots(1,3, figsize=(15,5))
