@@ -35,11 +35,11 @@ with open(json_file) as file:
 u_cores = int(multiprocessing.cpu_count() / 2)
 
 # Discretization parameters
-M = int(2**17) # Grid size (best to choose a power of 2 for speed improvements for FFT)
-h = 50 # Grid step size
+M = 65536           # Grid size (best to choose a power of 2 for speed improvements for FFT)
+h = 0.01            # Grid step size
 
 # Exposure and probability of claim - frequency parameters
-N = insurance_structure['Number_of_claims']
+N = insurance_structure['Exposure']
 pr = insurance_structure['Claim_unit_probability']
 
 # Calculate the count
@@ -53,7 +53,7 @@ Limit_h = int(Limit/h)
 Excess_h = int(Excess/h)
 
 # Severity parameters
-s_params = [insurance_structure['Severity_param0'], insurance_structure['Severity_param1']]
+s_params = [insurance_structure['Severity_param0'], insurance_structure['Severity_param1'], insurance_structure['Severity_param2']]
 s_dist = insurance_structure['Severity_distribution']
 
 ## Discretize the severity distribution
@@ -64,6 +64,8 @@ def discretize_pdf(k, h, severity_distribution, params):
         pdf = stats.gamma.cdf(k*h+h/2, a=params[0], scale=1/params[1]) - stats.gamma.cdf(k*h-h/2, a=params[0], scale=1/params[1])
     elif severity_distribution == "pareto":
         pdf = stats.pareto.cdf(k*h+h/2, b=params[0], scale=params[1]) - stats.pareto.cdf(k*h-h/2, b=params[0], scale=params[1])
+    elif severity_distribution == "gpd":
+        pdf = stats.genpareto.cdf(k*h+h/2, c=params[0], loc=params[1], scale=params[2]) - stats.genpareto.cdf(k*h-h/2, c=params[0], loc=params[1], scale=params[2])
     return pdf
 
 def discretize_loss(k,h):
@@ -182,7 +184,7 @@ print("Frequency\t:", format(pr, ".3f"))
 print("Exposure\t:", N)
 
 print("Chosen distribution\t:", s_dist)
-print("Parameters\t:", format(s_params[0], ".3f"), ",", format(s_params[1], ".3f"))
+print("Parameters\t:", format(s_params[0], ".3f"), ",", format(s_params[1], ".3f"), ",", format(s_params[2], ".3f"))
 
 print("Gross mean\t:", format(al_gross_mean, ",.0f"))
 print("Retained mean\t:", format(al_ret_mean, ",.0f"))
@@ -191,8 +193,8 @@ print("Ceded mean\t:", format(al_ced_mean, ",.0f"))
 # Apply formatting for display purposes
 disp_tab = agg_loss_tab.to_string(formatters={
     'Percentiles': '{:,.3f}'.format,
-    'Gross Losses': '{:,.0f}'.format,
-    'Retained Losses': '{:,.0f}'.format,
-    'Ceded Losses': '{:,.0f}'.format
+    'Gross Losses': '{:,.3f}'.format,
+    'Retained Losses': '{:,.3f}'.format,
+    'Ceded Losses': '{:,.3f}'.format
 })
 print(disp_tab)
