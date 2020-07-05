@@ -32,11 +32,11 @@ with open(json_file) as file:
     insurance_structure = json.load(file)['insurance_structure']
 
 # Parallel processing
-u_cores = int(multiprocessing.cpu_count() / 2)
+u_cores = int(multiprocessing.cpu_count())
 
 # Discretization parameters
-M = 65536           # Grid size (best to choose a power of 2 for speed improvements for FFT)
-h = 0.01            # Grid step size
+M = 65536*4           # Grid size 
+h = 0.02            # Grid step size
 
 # Exposure and probability of claim - frequency parameters
 N = insurance_structure['Exposure']
@@ -72,7 +72,8 @@ def discretize_loss(k,h):
     return k*h
 
 x_pdf = Parallel(n_jobs=u_cores)(delayed(discretize_pdf)(k, h, s_dist, s_params) for k in range(M))
-x = Parallel(n_jobs=u_cores)(delayed(discretize_loss)(k,h) for k in range(M))
+#x = Parallel(n_jobs=u_cores)(delayed(discretize_loss)(k,h) for k in range(M))
+x = np.linspace(10, M*h, M)
 
 x_ret_pdf = np.zeros(M) # Retained distribution models below excess losses
 x_ced_pdf = np.zeros(M) # Ceded distribution models above excess but below the limit
@@ -186,9 +187,9 @@ print("Exposure\t:", N)
 print("Chosen distribution\t:", s_dist)
 print("Parameters\t:", format(s_params[0], ".3f"), ",", format(s_params[1], ".3f"), ",", format(s_params[2], ".3f"))
 
-print("Gross mean\t:", format(al_gross_mean, ",.0f"))
-print("Retained mean\t:", format(al_ret_mean, ",.0f"))
-print("Ceded mean\t:", format(al_ced_mean, ",.0f"))
+print("Gross mean\t:", format(al_gross_mean, ",.3f"))
+print("Retained mean\t:", format(al_ret_mean, ",.3f"))
+print("Ceded mean\t:", format(al_ced_mean, ",.3f"))
 
 # Apply formatting for display purposes
 disp_tab = agg_loss_tab.to_string(formatters={
