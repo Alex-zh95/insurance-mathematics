@@ -23,9 +23,11 @@ import argparse, json
 parser = argparse.ArgumentParser(description="Generate an aggregate loss distribution estimate using FFT.")
 
 parser.add_argument('-i', type=str, help="Path to insurance structure JSON.")
+parser.add_argument('-o', type=str, help="Output file name", default="Output.csv")
 args = parser.parse_args()
 
 json_file = args.i
+out_file = args.o
 
 # Load the json file
 with open(json_file) as file:
@@ -199,3 +201,6 @@ disp_tab = agg_loss_tab.to_string(formatters={
     'Ceded Losses': '{:,.3f}'.format
 })
 print(disp_tab)
+
+# Save the table to an output
+agg_loss_tab.to_csv(out_file)
