@@ -12,6 +12,7 @@ Source: Parodi, Pietro: "Triangle-free reserving: a non-traditional framework fo
 """
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from scipy.optimize import newton # Secant method of root finding
@@ -19,11 +20,13 @@ import json
 import argparse
 
 parser = argparse.ArgumentParser(description="Calculate IBNR on the assumption that reporting delays behave according to an exponential distribution")
-parser.add_argument('-r', type=str, help="Path to file containing policy information JSON")
-parser.add_argument('-p', type=int, help="Toggle whether plots are to be shown (1) or not (0")
+parser.add_argument('-i', type=str, help="Path to file containing policy information JSON")
+parser.add_argument('-p', type=str, help="Toggle whether plots are to be shown - default is blank for no plots")
+parser.add_argument('-o', type=str, help="Path to output file for results saving.")
 
 args = parser.parse_args()
-json_file = args.r
+json_file = args.i
+out_file = args.o
 plotOn = args.p
 
 # Import
@@ -46,7 +49,7 @@ print("Observed claims count:\t\t", format(policy["Total_claims"], ".3f"))
 t0 = tObserved + 0.01
 
 # Plot the Bayesian unbiasing function to see visually where we have roots (Newton and secant methods do not unconditionally converge)
-if (plotOn > 0):
+if plotOn is not None:
     x = np.linspace(0,upper,500)
     y = bias_to_debias_difference(x, tObserved, upper)
     plt.plot(x,y,color='red')
@@ -67,4 +70,23 @@ reported = 4
 out = project(policy['Reporting_years'], policy['Policy_length'], tTrue, policy['Total_claims'])
 print("Uplifted:\t\t\t", format(out, ".3f"))
 print("IBNR:\t\t\t\t", format(out - policy['Total_claims'], ".3f"))
-print("Standard error:\t\t\t", format(np.sqrt(out - policy['Total_claims']), ".3f"))
+
+ibnr_standard_error = np.sqrt(out - policy['Total_claims'])
+print("Standard error:\t\t\t", format(ibnr_standard_error, ".3f"))
+
+# Write to output if not empty
+if out_file is not None:
+    # Open the file output as specified by user, store in "f"
+    with open(out_file, 'w') as f:
+        # Create the dataframe for export
+        result = {
+            "Reporting years": policy['Policy_length'],
+            "Observed frequency": policy['Total_claims'],
+            "Average observed delay": tObserved,
+            "Unbiased delay estimate": tTrue,
+            "Frequency with IBNR": out,
+            "Standard error": ibnr_standard_error
+        }
+
+        # Dump the result
+        json.dump(result, f)

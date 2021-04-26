@@ -202,5 +202,5 @@ disp_tab = agg_loss_tab.to_string(formatters={
 })
 print(disp_tab)
 
-# Save the table to an output
+# Save the table to an output - Perhaps saving with a JSON is better?
 agg_loss_tab.to_csv(out_file)
