@@ -4,7 +4,7 @@ Author:     Alex-zh
 
 Date:       2020-04-21
 
-Calculates a loss distribution and exports a summary file of the parameters to a text file.
+Calculates a compound Poisson loss distribution using given selected inputs and severity distributions, outputting information into a JSON file.
 
 Due to the number of input parameters required, will import the necessary parameters using JSON.
 """
@@ -23,15 +23,15 @@ import argparse, json
 parser = argparse.ArgumentParser(description="Generate an aggregate loss distribution estimate using FFT.")
 
 parser.add_argument('-i', type=str, help="Path to insurance structure JSON.")
-parser.add_argument('-o', type=str, help="Output file name", default="Output.csv")
+parser.add_argument('-o', type=str, help="Output file name (JSON)", default="Output.JSON")
 args = parser.parse_args()
 
 json_file = args.i
 out_file = args.o
 
 # Load the json file
-with open(json_file) as file:
-    insurance_structure = json.load(file)['insurance_structure']
+with open(json_file) as in_file:
+    insurance_structure = json.load(in_file)['insurance_structure']
 
 # Parallel processing
 u_cores = int(multiprocessing.cpu_count())
@@ -130,6 +130,18 @@ al_gross_mean = np.sum(s_pdf*x)
 al_ret_mean = np.sum(s_ret_pdf*x)
 al_ced_mean = np.sum(s_ced_pdf*x)
 
+# Generate the standard deviations
+al_gross_std = np.sqrt( np.sum(s_pdf*x**2) - al_gross_mean**2 )
+al_ret_std = np.sqrt( np.sum(s_ret_pdf*x**2) - al_ret_mean**2 )
+al_ced_std = np.sqrt( np.sum(s_ced_pdf*x**2) - al_ced_mean**2 )
+
+# Summarize the mean and standard deviations into one table
+al_stats = pd.DataFrame({
+    'Layer': ('Gross', 'Retained', 'Ceded'),
+    'Mean': (al_gross_mean, al_ret_mean, al_ced_mean),
+    'Std': (al_gross_std, al_ret_std, al_ced_std)
+})
+
 # Generate the aggregate loss cdf
 s_cdf = np.cumsum(s_pdf)
 s_ret_cdf = np.cumsum(s_ret_pdf)
@@ -202,5 +214,9 @@ disp_tab = agg_loss_tab.to_string(formatters={
 })
 print(disp_tab)
 
-# Save the table to an output - Perhaps saving with a JSON is better?
-agg_loss_tab.to_csv(out_file)
+# Want to summarize the above results into a JSON file
+with open(out_file, "w") as out_f:
+    # The JSON file will contain 2 layers: 1 for the aggregate loss table and then the summary statistics
+    result = {'Aggregate_table': agg_loss_tab, 'Summary_aggregate': al_stats}
+    json.dump(result, out_f)
+    

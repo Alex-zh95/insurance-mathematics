@@ -14,8 +14,6 @@ where the -i flag represents the policy information (could be at portfolio level
 ## 2. Loss distributions
 This script builds an aggregate loss distribution using the Poisson frequency assumption and a selection of possible severity distributions such as lognormal, gamma and generalized Pareto. The output is a simple 3-layer insurance tower, all of which can be specified by the input JSON file. The method used to generate is the Fourier transform, derived by first principles (verification found text in [2]).
 
-<<CURRENTLY STILL IN PROGRESS>>
-
 Usage: Call
 python loss_distribution.py -i <INSURANCE_STRUCTURE.JSON> -o <OUTPUT.JSON>
 
