@@ -80,7 +80,8 @@ if out_file is not None:
     with open(out_file, 'w') as f:
         # Create the dataframe for export
         result = {
-            "Reporting years": policy['Policy_length'],
+            "Policy years": policy['Policy_length'],
+			"Reported years": policy['Reporting_years'],
             "Observed frequency": policy['Total_claims'],
             "Average observed delay": tObserved,
             "Unbiased delay estimate": tTrue,
