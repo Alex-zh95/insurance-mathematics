@@ -62,11 +62,10 @@ tTrue = newton(bias_to_debias_difference, t0, args=[tObserved, upper])
 print("Calculated true average delay:\t", format(tTrue, ".3f"))
 
 # Projecting the claims upwards to the true upper limit (e.g. grossing up), we can use the tTrue parameter, assuming that the unbiased delay distribution is still exponential
-def project(reported_tUpper, project_tUpper, param, reported_count):
-    return reported_count * (project_tUpper / (project_tUpper - param * ( np.exp((project_tUpper - reported_tUpper)/param) - np.exp(-reported_tUpper/param))))
+def project(reported_tUpper, project_tUpper, param, est_param, reported_count):
+    return reported_count * (reported_tUpper / (reported_tUpper - param * ( np.exp((reported_tUpper - project_tUpper)/est_param) - np.exp(-project_tUpper/est_param))))
 
-reported = 4 
-out = project(policy['Reporting_years'], policy['Policy_length'], tTrue, policy['Total_claims'])
+out = project(policy['Reporting_years'], policy['Policy_length'], tTrue, tObserved,policy['Total_claims'])
 print("Uplifted:\t\t\t", format(out, ".3f"))
 print("IBNR:\t\t\t\t", format(out - policy['Total_claims'], ".3f"))
 
