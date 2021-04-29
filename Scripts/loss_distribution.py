@@ -23,11 +23,13 @@ import argparse, json
 parser = argparse.ArgumentParser(description="Generate an aggregate loss distribution estimate using FFT.")
 
 parser.add_argument('-i', type=str, help="Path to insurance structure JSON.")
-parser.add_argument('-o', type=str, help="Output file name (JSON)", default="Output.JSON")
+parser.add_argument('-o', type=str, help="Output file name", default="Output.JSON")
+parser.add_argument('-t', type=str, help="Export file type (JSON, CSV)", default="JSON")
 args = parser.parse_args()
 
 json_file = args.i
 out_file = args.o
+out_type = args.t
 
 # Load the json file
 with open(json_file) as in_file:
@@ -137,9 +139,10 @@ al_ced_std = np.sqrt( np.sum(s_ced_pdf*x**2) - al_ced_mean**2 )
 
 # Summarize the mean and standard deviations into one table
 al_stats = pd.DataFrame({
-    'Layer': ('Gross', 'Retained', 'Ceded'),
-    'Mean': (al_gross_mean, al_ret_mean, al_ced_mean),
-    'Std': (al_gross_std, al_ret_std, al_ced_std)
+    'Percentiles': ('Mean', 'Std'),
+    'Gross Losses': (al_gross_mean, al_gross_std),
+    'Retained Losses': (al_ret_mean, al_ret_std),
+    'Ceded Losses': (al_ced_mean, al_ced_std)
 })
 
 # Generate the aggregate loss cdf
@@ -192,6 +195,7 @@ agg_loss_tab = pd.DataFrame({
     'Ceded Losses': ced_loss
 })
 
+# Print parameters
 print("Aggregate Loss Costing -- FFT based approach")
 print("Excess\t:", Excess)
 print("Limit\t:", format(Limit, ".0f"))
@@ -205,18 +209,14 @@ print("Gross mean\t:", format(al_gross_mean, ",.3f"))
 print("Retained mean\t:", format(al_ret_mean, ",.3f"))
 print("Ceded mean\t:", format(al_ced_mean, ",.3f"))
 
-# Apply formatting for display purposes
-disp_tab = agg_loss_tab.to_string(formatters={
-    'Percentiles': '{:,.3f}'.format,
-    'Gross Losses': '{:,.3f}'.format,
-    'Retained Losses': '{:,.3f}'.format,
-    'Ceded Losses': '{:,.3f}'.format
-})
-print(disp_tab)
+# Concatenate the two data frames
+frames = [agg_loss_tab, al_stats]
+total_tab = pd.concat(frames, ignore_index=True)
+print(total_tab)
 
 # Want to summarize the above results into a JSON file
-with open(out_file, "w") as out_f:
-    # The JSON file will contain 2 layers: 1 for the aggregate loss table and then the summary statistics
-    result = {'Aggregate_table': agg_loss_tab, 'Summary_aggregate': al_stats}
-    json.dump(result, out_f)
-    
+if out_file is not None:
+    if out_type == "CSV":
+        total_tab.to_csv(out_file)
+    else:
+        total_tab.to_json(out_file, orient="records")

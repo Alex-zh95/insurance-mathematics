@@ -12,7 +12,6 @@ Source: Parodi, Pietro: "Triangle-free reserving: a non-traditional framework fo
 """
 
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 from scipy.optimize import newton # Secant method of root finding
