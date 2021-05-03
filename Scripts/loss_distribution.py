@@ -76,31 +76,24 @@ def discretize_loss(k,h):
     return k*h
 
 x_pdf = Parallel(n_jobs=u_cores)(delayed(discretize_pdf)(k, h, s_dist, s_params) for k in range(M))
-#x = Parallel(n_jobs=u_cores)(delayed(discretize_loss)(k,h) for k in range(M))
 x = np.linspace(10, M*h, M)
 
 x_ret_pdf = np.zeros(M) # Retained distribution models below excess losses
 x_ced_pdf = np.zeros(M) # Ceded distribution models above excess but below the limit
 
 # Obtain survival of excess
-pBelowExcess = 0
-for k in range(Excess_h):
-    pBelowExcess += x_pdf[k]
-pAboveExcess = 1 - pBelowExcess
+pAboveExcess = 1 - np.sum(x_pdf[0:Excess_h])
 
 # Losses above the excess have probability of 0 for retained distribution
 for k in range(M):
-    x_ret_pdf[k] = x_pdf[k]
-    if k == Excess_h:
+    if k < Excess_h:
+        x_ret_pdf[k] = x_pdf[k]
+    elif k == Excess_h:
         x_ret_pdf[k] = pAboveExcess
-        break # All other values are 0 by default
 
-# Ceded distribution contains losses given they are above excess, hence probabilities need to be scaled
-for k in range(M):
+    # Ceded distribution contains losses given they are above excess, hence probabilities need to be scaled
     if k < Limit_h:
         x_ced_pdf[k] = x_pdf[Excess_h+k] / pAboveExcess
-    else:
-        break
 
 pAboveLimit = 1 - sum(x_ced_pdf)
 x_ced_pdf[Limit_h] = pAboveLimit
@@ -176,17 +169,16 @@ for p in percentiles:
     c_index = find_index(p, s_ced_cdf)
     ced_indices.append(c_index)
 
+# Each vector of indices will have the same length by design (i.e. length of percentiles) hence can be contained in one loop
 gross_loss = []
-for i in gross_indices:
-    gross_loss.append(x[i])
-
 ret_loss = []
-for i in ret_indices:
-    ret_loss.append(x[i])
-
 ced_loss = []
-for i in ced_indices:
-    ced_loss.append(x[i])
+
+for i in range(len(percentiles)):
+    gross_index, ret_index, ced_index = gross_indices[i], ret_indices[i], ced_indices[i]
+    gross_loss.append(x[gross_index])
+    ret_loss.append(x[ret_index])
+    ced_loss.append(x[ced_index])
 
 agg_loss_tab = pd.DataFrame({
     'Percentiles': percentiles,
