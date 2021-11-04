@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import stats
+import bisect
 
 import multiprocessing
 from joblib import Parallel, delayed
@@ -39,7 +40,7 @@ with open(json_file) as in_file:
 u_cores = int(multiprocessing.cpu_count())
 
 # Discretization parameters
-M = 65536*4           # Grid size 
+M = 2**18           # Grid size 
 h = 0.02            # Grid step size
 
 # Exposure and probability of claim - frequency parameters
@@ -76,24 +77,23 @@ def discretize_loss(k,h):
     return k*h
 
 x_pdf = Parallel(n_jobs=u_cores)(delayed(discretize_pdf)(k, h, s_dist, s_params) for k in range(M))
-x = np.linspace(10, M*h, M)
+x = np.linspace(h, M*h, M)
 
-x_ret_pdf = np.zeros(M) # Retained distribution models below excess losses
-x_ced_pdf = np.zeros(M) # Ceded distribution models above excess but below the limit
+# Retained distribution models below excess losses
+x_ret_pdf = np.zeros(M)
+x_ret_pdf[:] = x_pdf[:] 
 
 # Obtain survival of excess
 pAboveExcess = 1 - np.sum(x_pdf[0:Excess_h])
+x_ret_pdf[Excess_h] = pAboveExcess
+
+x_ced_pdf = np.zeros(M) # Ceded distribution models above excess but below the limit
 
 # Losses above the excess have probability of 0 for retained distribution
-for k in range(M):
-    if k < Excess_h:
-        x_ret_pdf[k] = x_pdf[k]
-    elif k == Excess_h:
-        x_ret_pdf[k] = pAboveExcess
+x_ret_pdf[Excess_h+1:] = 0
 
-    # Ceded distribution contains losses given they are above excess, hence probabilities need to be scaled
-    if k < Limit_h:
-        x_ced_pdf[k] = x_pdf[Excess_h+k] / pAboveExcess
+# Ceded distribution contains losses given they are above excess, hence probabilities need to be scaled
+x_ced_pdf[0:Limit_h] = np.array([x_pdf[Excess_h+k]/pAboveExcess for k in range(Limit_h)])
 
 pAboveLimit = 1 - sum(x_ced_pdf)
 x_ced_pdf[Limit_h] = pAboveLimit
@@ -143,41 +143,21 @@ s_cdf = np.cumsum(s_pdf)
 s_ret_cdf = np.cumsum(s_ret_pdf)
 s_ced_cdf = np.cumsum(s_ced_pdf)
 
-# Obtain the quantile descriptors
-def find_index(value, array):
-    N = len(array)
-    cur_ind = 0
-    temp_min = 1e6
-    for i in range(1,N):
-        temp_diff = np.abs(array[i]-value)
-        if temp_min >= temp_diff:
-            cur_ind = i
-            temp_min = temp_diff
-    return cur_ind
-
 percentiles = [0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.92, 0.95, 0.97, 0.99, 0.999]
-gross_indices = []
-ret_indices = []
-ced_indices = []
-for p in percentiles:
-    g_index = find_index(p, s_cdf)
-    gross_indices.append(g_index)
-
-    r_index = find_index(p, s_ret_cdf)
-    ret_indices.append(r_index)
-
-    c_index = find_index(p, s_ced_cdf)
-    ced_indices.append(c_index)
 
 # Each vector of indices will have the same length by design (i.e. length of percentiles) hence can be contained in one loop
 gross_loss = []
 ret_loss = []
 ced_loss = []
 
-for i in range(len(percentiles)):
-    gross_index, ret_index, ced_index = gross_indices[i], ret_indices[i], ced_indices[i]
+for p in percentiles:
+    gross_index = min(bisect.bisect(s_cdf, p),M-1)
     gross_loss.append(x[gross_index])
+
+    ret_index = min(bisect.bisect(s_ret_cdf, p), M-1)
     ret_loss.append(x[ret_index])
+
+    ced_index = min(bisect.bisect(s_ced_cdf, p), M-1)
     ced_loss.append(x[ced_index])
 
 agg_loss_tab = pd.DataFrame({
@@ -191,7 +171,7 @@ agg_loss_tab = pd.DataFrame({
 print("Aggregate Loss Costing -- FFT based approach")
 print("Excess\t:", Excess)
 print("Limit\t:", format(Limit, ".0f"))
-print("Frequency\t:", format(pr, ".3f"))
+print("Frequency\t:", format(fLambda, ".3f"))
 print("Exposure\t:", N)
 
 print("Chosen distribution\t:", s_dist)
