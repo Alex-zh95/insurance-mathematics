@@ -24,7 +24,7 @@ import argparse, json
 parser = argparse.ArgumentParser(description="Generate an aggregate loss distribution estimate using FFT.")
 
 parser.add_argument('-i', type=str, help="Path to insurance structure JSON.")
-parser.add_argument('-o', type=str, help="Output file name", default="Output.JSON")
+parser.add_argument('-o', type=str, help="Output file name", default=None)
 parser.add_argument('-t', type=str, help="Export file type (JSON, CSV)", default="JSON")
 args = parser.parse_args()
 
@@ -62,22 +62,22 @@ s_params = [insurance_structure['Severity_param0'], insurance_structure['Severit
 s_dist = insurance_structure['Severity_distribution']
 
 ## Discretize the severity distribution
-def discretize_pdf(k, h, severity_distribution, params):
+def discretize_pdf(x, h, severity_distribution, params):
     if severity_distribution == "lognorm":
-        pdf = stats.lognorm.cdf(k*h+h/2, s=params[0], scale=params[1]) - stats.lognorm.cdf(k*h-h/2, s=params[0], scale=params[1])
+        pdf = stats.lognorm.cdf(x+h/2, s=params[0], scale=params[1]) - stats.lognorm.cdf(x-h/2, s=params[0], scale=params[1])
     elif severity_distribution == "gamma":
-        pdf = stats.gamma.cdf(k*h+h/2, a=params[0], scale=1/params[1]) - stats.gamma.cdf(k*h-h/2, a=params[0], scale=1/params[1])
+        pdf = stats.gamma.cdf(x+h/2, a=params[0], scale=1/params[1]) - stats.gamma.cdf(x-h/2, a=params[0], scale=1/params[1])
     elif severity_distribution == "pareto":
-        pdf = stats.pareto.cdf(k*h+h/2, b=params[0], scale=params[1]) - stats.pareto.cdf(k*h-h/2, b=params[0], scale=params[1])
+        pdf = stats.pareto.cdf(x+h/2, b=params[0], scale=params[1]) - stats.pareto.cdf(x-h/2, b=params[0], scale=params[1])
     elif severity_distribution == "gpd":
-        pdf = stats.genpareto.cdf(k*h+h/2, c=params[0], loc=params[1], scale=params[2]) - stats.genpareto.cdf(k*h-h/2, c=params[0], loc=params[1], scale=params[2])
+        pdf = stats.genpareto.cdf(x+h/2, c=params[0], loc=params[1], scale=params[2]) - stats.genpareto.cdf(x-h/2, c=params[0], loc=params[1], scale=params[2])
     return pdf
 
 def discretize_loss(k,h):
     return k*h
 
-x_pdf = Parallel(n_jobs=u_cores)(delayed(discretize_pdf)(k, h, s_dist, s_params) for k in range(M))
 x = np.linspace(h, M*h, M)
+x_pdf = Parallel(n_jobs=u_cores)(delayed(discretize_pdf)(xi, h, s_dist, s_params) for xi in x)
 
 # Retained distribution models below excess losses
 x_ret_pdf = np.zeros(M)
