@@ -1,6 +1,6 @@
 # Insurance Mathematics
 
-This repository showcases scripts used for pricing insurance contracts. Areas of consideration include loss modeling following a frequency/severity approach as well as distributional considerations for reporting delay (IBNR). 
+This repository showcases scripts and tools used for pricing insurance contracts. Areas of consideration include loss modeling following a frequency/severity approach as well as distributional considerations for reporting delay (IBNR). 
 
 # Scripts
 ## 1. Triangle-free IBNR estimation
@@ -19,8 +19,14 @@ Usage: Call
 
 python loss_distribution.py -i <INSURANCE_STRUCTURE.JSON> -o <OUTPUT.JSON>
 
+# Notebooks
+## 3. Name standardization
+This notbook looks at how untidy naming conventions could by tidied up by fuzzy name searching and clustering techniques.
+
 # Sources
 
 [1] "Triangle-free reserving: a non-traditional framework for estimating reserves and reserve uncertainty" by Pietro Parodi, where a distributional approach was taken for evaluating IBNR
 
 [2] "Pricing in General Insurance" by Pietro Parodi, which contains the theory of how Fourier transforms may be incorporated in producing a aggregate loss distribution when considering a frequency/severity approach to pricing
+
+[3] https://www.analyticsinsight.net/company-names-standardization-using-a-fuzzy-nlp-approach/ 
