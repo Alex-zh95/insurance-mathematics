@@ -11,12 +11,8 @@ Due to the number of input parameters required, will import the necessary parame
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from scipy import stats
 import bisect
-
-import multiprocessing
-from joblib import Parallel, delayed
 
 import argparse, json
 
@@ -35,9 +31,6 @@ out_type = args.t
 # Load the json file
 with open(json_file) as in_file:
     insurance_structure = json.load(in_file)['insurance_structure']
-
-# Parallel processing
-u_cores = int(multiprocessing.cpu_count())
 
 # Discretization parameters
 M = 2**18           # Grid size 
@@ -62,22 +55,22 @@ s_params = [insurance_structure['Severity_param0'], insurance_structure['Severit
 s_dist = insurance_structure['Severity_distribution']
 
 ## Discretize the severity distribution
-def discretize_pdf(x, h, severity_distribution, params):
+def discretize_pdf(X, h, severity_distribution, params):
     if severity_distribution == "lognorm":
-        pdf = stats.lognorm.cdf(x+h/2, s=params[0], scale=params[1]) - stats.lognorm.cdf(x-h/2, s=params[0], scale=params[1])
+        pdf = stats.lognorm.cdf(X+h/2, s=params[0], scale=params[1]) - stats.lognorm.cdf(X-h/2, s=params[0], scale=params[1])
     elif severity_distribution == "gamma":
-        pdf = stats.gamma.cdf(x+h/2, a=params[0], scale=1/params[1]) - stats.gamma.cdf(x-h/2, a=params[0], scale=1/params[1])
+        pdf = stats.gamma.cdf(X+h/2, a=params[0], scale=1/params[1]) - stats.gamma.cdf(X-h/2, a=params[0], scale=1/params[1])
     elif severity_distribution == "pareto":
-        pdf = stats.pareto.cdf(x+h/2, b=params[0], scale=params[1]) - stats.pareto.cdf(x-h/2, b=params[0], scale=params[1])
+        pdf = stats.pareto.cdf(X+h/2, b=params[0], scale=params[1]) - stats.pareto.cdf(X-h/2, b=params[0], scale=params[1])
     elif severity_distribution == "gpd":
-        pdf = stats.genpareto.cdf(x+h/2, c=params[0], loc=params[1], scale=params[2]) - stats.genpareto.cdf(x-h/2, c=params[0], loc=params[1], scale=params[2])
+        pdf = stats.genpareto.cdf(X+h/2, c=params[0], loc=params[1], scale=params[2]) - stats.genpareto.cdf(X-h/2, c=params[0], loc=params[1], scale=params[2])
     return pdf
 
 def discretize_loss(k,h):
     return k*h
 
 x = np.linspace(h, M*h, M)
-x_pdf = Parallel(n_jobs=u_cores)(delayed(discretize_pdf)(xi, h, s_dist, s_params) for xi in x)
+x_pdf = discretize_pdf(x,h, severity_distribution=s_dist, params=s_params)
 
 # Retained distribution models below excess losses
 x_ret_pdf = np.zeros(M)
