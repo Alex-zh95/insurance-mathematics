@@ -79,10 +79,11 @@ x_ret_pdf[:] = x_pdf[:]
 pAboveExcess = 1 - np.sum(x_pdf[0:Excess_h])
 x_ret_pdf[Excess_h] = pAboveExcess
 
-x_ced_pdf = np.zeros(M) # Ceded distribution models above excess but below the limit
-
 # Losses above the excess have probability of 0 for retained distribution
 x_ret_pdf[Excess_h+1:] = 0
+
+# Ceded distribution models above excess but below the limit
+x_ced_pdf = np.zeros(M) 
 
 # Ceded distribution contains losses given they are above excess, hence probabilities need to be scaled
 x_ced_pdf[0:Limit_h] = np.array([x_pdf[Excess_h+k]/pAboveExcess for k in range(Limit_h)])

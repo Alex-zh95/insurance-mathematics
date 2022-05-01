@@ -15,7 +15,11 @@ where the -i flag represents the policy information (could be at portfolio level
 ## 2. Frequency-Severity Modelling 
 This script builds an aggregate loss distribution using the Poisson frequency assumption and a selection of possible severity distributions such as lognormal, gamma and generalized Pareto. The output is a simple 3-layer insurance tower, all of which can be specified by the input JSON file. The method used to generate is the Fourier transform, derived by first principles (verification found text in [2]).
 
-This script is perhaps best suited for reinsurance or other excess of loss policies where parameters have been chosen to be scaled by millions (the example JSON file uses this approach). Otherwise, the grid parameters may need modification so that discretization is correct. This error will be flagged and the script will terminate.
+1. The gross layer acts with no excess and unlimited liability,
+2. The retained layer operates with the excess as retained limit
+3. The ceded layer operates with excess operating as attachment, limited by the limit provided.
+
+This script is perhaps best suited for reinsurance or other excess of loss policies where parameters have been chosen to be scaled by millions (the example JSON file uses this approach). An example use would be understanding outwards reinsurance required (ceded) vs the proportion retained (retained). Otherwise, the grid parameters may need modification so that discretization is correct. This error will be flagged and the script will terminate.
 
 Usage: Call
 
