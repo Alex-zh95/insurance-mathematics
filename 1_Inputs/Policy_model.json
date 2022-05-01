@@ -1,0 +1,11 @@
+{
+    "insurance_structure": {
+        "Frequency": 1.2,
+        "Limit_of_liability": 100,
+        "Excess": 10,
+        "Severity_distribution": "gpd",
+        "Severity_param0": 0.378,
+        "Severity_param1": 0.000,
+        "Severity_param2": 8.123 
+    }
+}

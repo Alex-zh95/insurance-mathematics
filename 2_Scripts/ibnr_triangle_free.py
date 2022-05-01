@@ -20,8 +20,8 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Calculate IBNR on the assumption that reporting delays behave according to an exponential distribution")
 parser.add_argument('-i', type=str, help="Path to file containing policy information JSON")
-parser.add_argument('-p', type=str, help="Toggle whether plots are to be shown - default is blank for no plots")
-parser.add_argument('-o', type=str, help="Path to output file for results saving.")
+parser.add_argument('-p', type=str, help="Toggle whether plots are to be shown - default is blank for no plots", default='')
+parser.add_argument('-o', type=str, help="Path to output file for results saving.", default=None)
 
 args = parser.parse_args()
 json_file = args.i
@@ -78,13 +78,13 @@ if out_file is not None:
     with open(out_file, 'w') as f:
         # Create the dataframe for export
         result = {
-            "Policy years": policy['Policy_length'],
-			"Reported years": policy['Reporting_years'],
-            "Observed frequency": policy['Total_claims'],
-            "Average observed delay": tObserved,
-            "Unbiased delay estimate": tTrue,
-            "Frequency with IBNR": out,
-            "Standard error": ibnr_standard_error
+            "Policy_years": policy['Policy_length'],
+			"Reported_years": policy['Reporting_years'],
+            "Observed_frequency": policy['Total_claims'],
+            "Average_observed delay": tObserved,
+            "Unbiased_delay estimate": tTrue,
+            "Frequency_with IBNR": out,
+            "Standard_error": ibnr_standard_error
         }
 
         # Dump the result

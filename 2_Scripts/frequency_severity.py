@@ -1,5 +1,5 @@
 """
-Filename:   loss_distribution.py
+Filename:   frequency_severity.py
 Author:     Alex-zh
 
 Date:       2020-04-21
@@ -33,15 +33,11 @@ with open(json_file) as in_file:
     insurance_structure = json.load(in_file)['insurance_structure']
 
 # Discretization parameters
-M = 2**18           # Grid size 
-h = 0.02            # Grid step size
+M = 2**20           # Grid size 
+h = 0.01             # Grid step size
 
-# Exposure and probability of claim - frequency parameters
-N = insurance_structure['Exposure']
-pr = insurance_structure['Claim_unit_probability']
-
-# Calculate the count
-fLambda = N*pr
+# Claim frequency
+fLambda = insurance_structure['Frequency']
 
 # Insurance parameters
 Limit = insurance_structure['Limit_of_liability'] # Limit of liability - needs to be a multiple of h
@@ -71,6 +67,9 @@ def discretize_loss(k,h):
 
 x = np.linspace(h, M*h, M)
 x_pdf = discretize_pdf(x,h, severity_distribution=s_dist, params=s_params)
+
+# Run a check to ensure that x_pdf sums close to 1 (add slight tolerance, defined by step size h, given inaccurancies will be caused by this even on correct generation)
+assert (x_pdf.sum() >= 1 - h) and (x_pdf.sum() <= 1 + h), 'Incorrect PDF generated, consider revising grid parameters'
 
 # Retained distribution models below excess losses
 x_ret_pdf = np.zeros(M)
@@ -136,7 +135,7 @@ s_cdf = np.cumsum(s_pdf)
 s_ret_cdf = np.cumsum(s_ret_pdf)
 s_ced_cdf = np.cumsum(s_ced_pdf)
 
-percentiles = [0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.92, 0.95, 0.97, 0.99, 0.999]
+percentiles = [0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.92, 0.95, 0.97, 0.99, 0.995, 0.999]
 
 # Each vector of indices will have the same length by design (i.e. length of percentiles) hence can be contained in one loop
 gross_loss = []
@@ -154,7 +153,7 @@ for p in percentiles:
     ced_loss.append(x[ced_index])
 
 agg_loss_tab = pd.DataFrame({
-    'Percentiles': percentiles,
+    'Percentiles': [f'{p:.1%}' for p in percentiles],
     'Gross Losses': gross_loss,
     'Retained Losses': ret_loss,
     'Ceded Losses': ced_loss
@@ -165,7 +164,6 @@ print("Aggregate Loss Costing -- FFT based approach")
 print("Excess\t:", Excess)
 print("Limit\t:", format(Limit, ".0f"))
 print("Frequency\t:", format(fLambda, ".3f"))
-print("Exposure\t:", N)
 
 print("Chosen distribution\t:", s_dist)
 print("Parameters\t:", format(s_params[0], ".3f"), ",", format(s_params[1], ".3f"), ",", format(s_params[2], ".3f"))
@@ -185,3 +183,5 @@ if out_file is not None:
         total_tab.to_csv(out_file)
     else:
         total_tab.to_json(out_file, orient="records")
+else:
+    print('No output file created. If this is not desired, rerun and issue a file path via the -o flag.')
