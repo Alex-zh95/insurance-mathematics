@@ -6,5 +6,9 @@
         "Severity_param0": 0.378,
         "Severity_param1": 0.000,
         "Severity_param2": 8.123 
+    },
+    "Grid": {
+        "Grid_width": 1048576,
+        "Grid_step": 0.01
     }
 }

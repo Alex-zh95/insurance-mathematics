@@ -30,11 +30,13 @@ out_type = args.t
 
 # Load the json file
 with open(json_file) as in_file:
-    insurance_structure = json.load(in_file)['insurance_structure']
+    jsonDict = json.load(in_file)
+    insurance_structure = jsonDict['insurance_structure']
+    grid_params = jsonDict['Grid']
 
 # Discretization parameters
-M = 2**20           # Grid size 
-h = 0.01            # Grid step size
+M = grid_params['Grid_width']
+h = grid_params['Grid_step']
 
 # Claim frequency
 fLambda = insurance_structure['Frequency']
@@ -70,7 +72,7 @@ x = np.linspace(h, M*h, M)
 x_pdf = discretize_pdf(x,h, severity_distribution=s_dist, params=s_params)
 
 # Run a check to ensure that x_pdf sums close to 1 (add slight tolerance, defined by step size h, given inaccurancies will be caused by this even on correct generation)
-assert (x_pdf.sum() >= 1 - h) and (x_pdf.sum() <= 1 + h), 'Incorrect PDF generated, consider revising grid parameters'
+assert (x_pdf.sum() >= 1 - h) and (x_pdf.sum() <= 1 + h), 'Incorrect PDF generated, consider revising grid parameters in JSON file'
 
 # Probability of exceeding each limit
 pExceedLims = [1-np.sum(x_pdf[:Lh]) for Lh in Limits_h]
