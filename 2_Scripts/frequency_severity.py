@@ -34,23 +34,23 @@ with open(json_file) as in_file:
 
 # Discretization parameters
 M = 2**20           # Grid size 
-h = 0.01             # Grid step size
+h = 0.01            # Grid step size
 
 # Claim frequency
 fLambda = insurance_structure['Frequency']
 
-# Insurance parameters
-Limit = insurance_structure['Limit_of_liability'] # Limit of liability - needs to be a multiple of h
-Excess = insurance_structure['Excess'] # Also needs to be a multiple of h
-
-Limit_h = int(Limit/h)
-Excess_h = int(Excess/h)
+# Insurance layer parameters
+Limits = np.array(insurance_structure['Limits'])
+Limits_h = (Limits / h).astype(int) # Conversion to steps
 
 # Severity parameters
 s_params = [insurance_structure['Severity_param0'], insurance_structure['Severity_param1'], insurance_structure['Severity_param2']]
 s_dist = insurance_structure['Severity_distribution']
 
-## Discretize the severity distribution
+# Outputs for percentiles 
+percentiles = [0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.92, 0.95, 0.97, 0.99, 0.995, 0.999]
+
+## Function for getting discretized pdf from given distribution
 def discretize_pdf(X, h, severity_distribution, params):
     if severity_distribution == "lognorm":
         pdf = stats.lognorm.cdf(X+h/2, s=params[0], scale=params[1]) - stats.lognorm.cdf(X-h/2, s=params[0], scale=params[1])
@@ -65,124 +65,88 @@ def discretize_pdf(X, h, severity_distribution, params):
 def discretize_loss(k,h):
     return k*h
 
+# Build up the PDF of the gross severity distribution
 x = np.linspace(h, M*h, M)
 x_pdf = discretize_pdf(x,h, severity_distribution=s_dist, params=s_params)
 
 # Run a check to ensure that x_pdf sums close to 1 (add slight tolerance, defined by step size h, given inaccurancies will be caused by this even on correct generation)
 assert (x_pdf.sum() >= 1 - h) and (x_pdf.sum() <= 1 + h), 'Incorrect PDF generated, consider revising grid parameters'
 
-# Retained distribution models below excess losses
-x_ret_pdf = np.zeros(M)
-x_ret_pdf[:] = x_pdf[:] 
+# Probability of exceeding each limit
+pExceedLims = [1-np.sum(x_pdf[:Lh]) for Lh in Limits_h]
 
-# Obtain survival of excess
-pAboveExcess = 1 - np.sum(x_pdf[0:Excess_h])
-x_ret_pdf[Excess_h] = pAboveExcess
+# Store all results from following for-loop into the following results matrix
+result = np.zeros(shape=(len(percentiles)+4, Limits_h.shape[0]))
 
-# Losses above the excess have probability of 0 for retained distribution
-x_ret_pdf[Excess_h+1:] = 0
+for k in range(len(Limits_h)):
+    if k == 0:
+        # For the first item, generate the gross layer
+        x_layer_pdf = x_pdf.copy()
+        c_fLambda = fLambda
+    else:
+        x_layer_pdf = np.zeros(M)
 
-# Ceded distribution models above excess but below the limit
-x_ced_pdf = np.zeros(M) 
+        # Apply the attachment/excess
+        x_layer_pdf[:Limits_h[k]] = np.array([x_pdf[Limits_h[k-1]+l]/pExceedLims[k-1] for l in range(Limits_h[k])])
 
-# Ceded distribution contains losses given they are above excess, hence probabilities need to be scaled
-x_ced_pdf[0:Limit_h] = np.array([x_pdf[Excess_h+k]/pAboveExcess for k in range(Limit_h)])
+        # Apply the upper limit
+        x_layer_pdf[Limits_h[k]] = 1 - x_layer_pdf.sum()
 
-pAboveLimit = 1 - sum(x_ced_pdf)
-x_ced_pdf[Limit_h] = pAboveLimit
+        # Adapt the claim frequency for the higher excess
+        c_fLambda = fLambda * pExceedLims[k-1]
 
-## Calculate the aggregated loss distribution with the FFT
+    # Apply Fourier transform
+    hatX_layer_pdf = np.fft.fft(x_layer_pdf)
 
-# Transform to Fourier domain
-FT_x_pdf = np.fft.fft(x_pdf)
-FT_x_ret_pdf = np.fft.fft(x_ret_pdf)
-FT_x_ced_pdf = np.fft.fft(x_ced_pdf)
+    # Obtain transformed aggregate loss distribution
+    hatS_layer_pdf = np.exp(c_fLambda * (hatX_layer_pdf - 1))
 
-# Calculated the transformed aggregate loss distribution
-FT_s_pdf = np.exp(fLambda*(FT_x_pdf-1))
-FT_s_ret_pdf = np.exp(fLambda*(FT_x_ret_pdf-1))
+    # Obtain aggregate loss distribution by inverting Fourier transform
+    s_layer_pdf = np.real(np.fft.ifft(hatS_layer_pdf)) # note: throw away imaginary part artefact
 
-# Ceded frequency = Gross frequency * above deductible survival
-c_fLambda = fLambda * pAboveExcess
-FT_s_ced_pdf = np.exp(c_fLambda*(FT_x_ced_pdf-1))
+    # Calculate usual statistics: mean, standard deviation
+    layer_mean = np.sum(s_layer_pdf * x)
+    result[-4, k] = layer_mean
 
-# Aggregate loss distribution 
-s_pdf = np.real(np.fft.ifft(FT_s_pdf))
-s_ret_pdf = np.real(np.fft.ifft(FT_s_ret_pdf))
-s_ced_pdf = np.real(np.fft.ifft(FT_s_ced_pdf))
+    layer_sd = np.sqrt(np.sum(s_layer_pdf * x**2) - layer_mean**2)
+    result[-3, k] = layer_sd
 
-## Obtain the results for output
+    # Obtain percentiles
+    s_layer_cdf = np.cumsum(s_layer_pdf)
 
-# Mean losses
-al_gross_mean = np.sum(s_pdf*x)
-al_ret_mean = np.sum(s_ret_pdf*x)
-al_ced_mean = np.sum(s_ced_pdf*x)
+    for i in range(len(percentiles)):
+        # Obtain relevant percentile index (including interpolation if needed)
+        ind = min(bisect.bisect(s_layer_cdf, percentiles[i]), M-1)
 
-# Generate the standard deviations
-al_gross_std = np.sqrt( np.sum(s_pdf*x**2) - al_gross_mean**2 )
-al_ret_std = np.sqrt( np.sum(s_ret_pdf*x**2) - al_ret_mean**2 )
-al_ced_std = np.sqrt( np.sum(s_ced_pdf*x**2) - al_ced_mean**2 )
+        # Save the percentile
+        result[i, k] = x[ind]
+
+    # For results, insert the layer information 
+    result[-2, k] = 0 if k == 0 else Limits[k-1]
+    result[-1, k] = np.Inf if k == 0 else Limits[k]
 
 # Summarize the mean and standard deviations into one table
-al_stats = pd.DataFrame({
-    'Percentiles': ('Mean', 'Std'),
-    'Gross Losses': (al_gross_mean, al_gross_std),
-    'Retained Losses': (al_ret_mean, al_ret_std),
-    'Ceded Losses': (al_ced_mean, al_ced_std)
-})
-
-# Generate the aggregate loss cdf
-s_cdf = np.cumsum(s_pdf)
-s_ret_cdf = np.cumsum(s_ret_pdf)
-s_ced_cdf = np.cumsum(s_ced_pdf)
-
-percentiles = [0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.92, 0.95, 0.97, 0.99, 0.995, 0.999]
-
-# Each vector of indices will have the same length by design (i.e. length of percentiles) hence can be contained in one loop
-gross_loss = []
-ret_loss = []
-ced_loss = []
-
-for p in percentiles:
-    gross_index = min(bisect.bisect(s_cdf, p),M-1)
-    gross_loss.append(x[gross_index])
-
-    ret_index = min(bisect.bisect(s_ret_cdf, p), M-1)
-    ret_loss.append(x[ret_index])
-
-    ced_index = min(bisect.bisect(s_ced_cdf, p), M-1)
-    ced_loss.append(x[ced_index])
-
-agg_loss_tab = pd.DataFrame({
-    'Percentiles': [f'{p:.1%}' for p in percentiles],
-    'Gross Losses': gross_loss,
-    'Retained Losses': ret_loss,
-    'Ceded Losses': ced_loss
-})
+colNames = [f'Layer {i:.0f} Losses' if i > 0 else 'Gross Losses' for i in range(len(Limits))]
+indNames = [f'{p:.1%}' for p in percentiles]
+indNames.append('Mean')
+indNames.append('Sd')
+indNames.append('Lower Limit')
+indNames.append('Upper Limit')
+results_table = pd.DataFrame(data=result, columns=colNames, index=indNames)
 
 # Print parameters
-print("Aggregate Loss Costing -- FFT based approach")
-print("Excess\t:", Excess)
-print("Limit\t:", format(Limit, ".0f"))
-print("Frequency\t:", format(fLambda, ".3f"))
+print('Aggregate Loss Costing -- FFT based approach')
+print(f'Chosen distribution\t: {s_dist}')
+print(f'Frequency\t\t: {fLambda:.3f}')
+print(f'Parameters\t\t: {s_params[0]:,.3f}, {s_params[1]:,.3f}, {s_params[2]:,.3f}') 
 
-print("Chosen distribution\t:", s_dist)
-print("Parameters\t:", format(s_params[0], ".3f"), ",", format(s_params[1], ".3f"), ",", format(s_params[2], ".3f"))
-
-print("Gross mean\t:", format(al_gross_mean, ",.3f"))
-print("Retained mean\t:", format(al_ret_mean, ",.3f"))
-print("Ceded mean\t:", format(al_ced_mean, ",.3f"))
-
-# Concatenate the two data frames
-frames = [agg_loss_tab, al_stats]
-total_tab = pd.concat(frames, ignore_index=True)
-print(total_tab)
+print(results_table)
 
 # Want to summarize the above results into a JSON file
 if out_file is not None:
     if out_type == "CSV":
-        total_tab.to_csv(out_file)
+        results_table.to_csv(out_file)
     else:
-        total_tab.to_json(out_file, orient="records")
+        results_table.to_json(out_file, orient="records")
 else:
     print('No output file created. If this is not desired, rerun and issue a file path via the -o flag.')
