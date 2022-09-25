@@ -8,7 +8,7 @@ This particular script calculates IBNR by modeling reporting delays as an expone
 
 Usage: Call
 
-python ibnr_triangle_free.py -i <POLICY.JSON> -p <1> -o <OUTPUT.JSON>
+    python ibnr_triangle_free.py -i <POLICY.JSON> -p <1> -o <OUTPUT.JSON>
 
 where the -i flag represents the policy information (could be at portfolio level), the -p flag toggles whether to show plots of the unbiasing function (omit this to not show plots and the -o flag represents the output, which is also in JSON format. This flag can be omitted if no output file is desired.
 
@@ -23,7 +23,7 @@ This script is perhaps best suited for reinsurance or other excess of loss polic
 
 Usage: Call
 
-python frequency_severity.py -i <INSURANCE_STRUCTURE.JSON> -o <OUTPUT.JSON>
+    python frequency_severity.py -i <INSURANCE_STRUCTURE.JSON> -o <OUTPUT.JSON>
 
 # Sources
 
