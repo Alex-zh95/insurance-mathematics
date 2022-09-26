@@ -11,9 +11,7 @@ Source:         https://www.mia.uni-saarland.de/weickert/Papers/book.pdf
 Implementation source: https://wire.insiderfinance.io/preserving-edges-when-smoothening-time-series-data-90f9d965132e 
 '''
 
-from cProfile import label
 import numpy as np 
-import pandas as pd
 from typing import Tuple
 
 import yfinance as yf
@@ -85,6 +83,8 @@ def perona_malik_smooth(p: np.ndarray, alpha: float=10.0, k: float=0.05, t_end: 
         Array to smooth 
     alpha: float, optional
         The Perona-Malik PDE converges to the heat equation as alpha tends to infinity
+    k: float, optional
+        t step size (keep low to avoid instability)
     t_end: float, optional
         Stopping point of the algorithm. Increase for stronger smoothness.
 
@@ -103,20 +103,20 @@ def perona_malik_smooth(p: np.ndarray, alpha: float=10.0, k: float=0.05, t_end: 
         # Convolve U to allow for well-posedness
         f = conv_heat_eqn(U.copy())
 
-        # Obtain derivatives 
+        # Obtain derivatives via Matrix multiplication
         fx = Dx @ f
         fxx = Dxx @ f
 
         Ux = Dx @ f
         Uxx = Dxx @ f
 
-        # Substitute into finite difference scheme
-        fds = alpha*Uxx / (alpha + fx**2) - 2*alpha*Ux*fx*fxx/(alpha + fx**2)**2 
+        # Substitute into finite difference scheme - disc. representation of PDE
+        Ut = alpha*Uxx / (alpha + fx**2) - 2*alpha*Ux*fx*fxx/(alpha + fx**2)**2 
 
-        # Now solve for next time-step:
+        # Now add back the boundary conditions
         U = np.hstack((
             np.array([p[0]]),
-            U[1:-1] + k*fds,
+            U[1:-1] + k*Ut,
             np.array([p[-1]])
         ))
 
