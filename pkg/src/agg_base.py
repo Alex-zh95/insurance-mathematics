@@ -1,6 +1,6 @@
 import numpy as np
-# from scipy import stats
-# from typing import Tuple
+from typing import Tuple
+import bisect
 
 
 class aggregate_distribution:
@@ -51,9 +51,13 @@ class aggregate_distribution:
         self.h = discretization_step
         self.M = grid
 
-        self.severity_dpdf = 0
-        self.agg_pdf = 0
-        self.losses = 0
+        self.severity_dpdf = None
+        self.agg_pdf = None
+        self.agg_cdf = None
+        self.losses = None
+
+        self.diagnostics = None
+        self._layer = False
 
     def get_frequency_mean(self) -> float:
         '''
@@ -71,13 +75,13 @@ class aggregate_distribution:
         '''
         Returns the variance of the chosen frequency distribution
         '''
-        return self.frequency['dist'].variance(*self.frequency['properties'])
+        return self.frequency['dist'].var(*self.frequency['properties'])
 
     def get_severity_variance(self) -> float:
         '''
         Returns the variance of the chosen severity distribution
         '''
-        return self.severity['dist'].variance(*self.severity['properties'])
+        return self.severity['dist'].var(*self.severity['properties'])
 
     def agg_mean(self,
                  theoretical: bool = True
@@ -92,7 +96,7 @@ class aggregate_distribution:
         if theoretical:
             return self.get_severity_mean() * self.get_frequency_mean()
         else:
-            return self.agg_pdf * self.losses
+            return np.sum(self.agg_pdf * self.losses)
 
     def agg_variance(self,
                      theoretical: bool = True
@@ -107,7 +111,29 @@ class aggregate_distribution:
         if theoretical:
             return self.get_frequency_mean()*self.get_severity_variance() + self.get_frequency_variance()*(self.get_severity_mean())**2
         else:
-            return self.agg_pdf * (self.losses**2) - self.agg_mean(theoretical)**2
+            return np.sum(self.agg_pdf * (self.losses**2)) - self.agg_mean(theoretical=False)**2
+
+    def agg_ppf(self, q: float | Tuple):
+        '''
+        Return the percentage point of aggregate. We can only use the discretized severity for this.
+
+        Parameters
+        ----------
+        q: float
+            Percentile (between 0 and 1)
+
+        Returns
+        -------
+        result: np.ndarray
+            Corresponding percentage point on aggregate distribution
+        '''
+        _q = np.array([q]) if isinstance(q, float) else np.array(q)
+
+        # Obtain the relevant index of the _q, including interpolation if needed
+        indices = [bisect.bisect(self.agg_cdf, qi) for qi in _q]
+
+        # Pass corresponding losses
+        return self.losses[indices]
 
     def discretize_pdf(self,
                        X: np.ndarray | None = None
@@ -124,18 +150,18 @@ class aggregate_distribution:
 
         Returns
         -------
-        pdf: np.ndarray | None
+        dpdf: np.ndarray | None
             Discretized pdf corresponding to the input X, if provided, otherwise None
         '''
         dist = self.severity['dist']
         dist_params = self.severity['properties']
         h = self.h
 
-        dpdf = dist.cdf(X+h/2, *dist_params) - dist.cdf(X-h/2, *dist_params)
         if X is None:
-            assert (dpdf.sum() >= 1 - h) & (dpdf.sum() <= 1 + h), 'Error: invalid discrete severity dist: does not total 1'
+            dpdf = dist.cdf(self.losses+h/2, *dist_params) - dist.cdf(self.losses-h/2, *dist_params)
             self.severity_dpdf = dpdf
         else:
+            dpdf = dist.cdf(X+h/2, *dist_params) - dist.cdf(X-h/2, *dist_params)
             return dpdf
 
     def setup_layer(self,
@@ -162,8 +188,10 @@ class aggregate_distribution:
             Discretized severity PDF after layer modification (only when inplace is not set to True)
         '''
 
+        self._layer = True
+
         # Losses: we expect the severity to already be discretized at this stage so lazy it
-        if self.severity_dpdf == 0:
+        if self.severity_dpdf is None:
             self.discretize_pdf()
 
         # Discretize the limit and excess points
@@ -173,8 +201,8 @@ class aggregate_distribution:
         p_xs_survival = 1 - np.sum(self.severity_dpdf[:xh])
 
         # Treatment of excess
-        dpdf = np.zeros(self.grid)
-        dpdf[:lh] = self.severity_dpdf[range(xh, lh)] / p_xs_survival
+        dpdf = np.zeros(self.M)
+        dpdf[:lh] = self.severity_dpdf[range(xh, xh + lh)] / p_xs_survival
 
         # Treatment of limit
         dpdf[lh] = 1 - dpdf.sum()
@@ -187,13 +215,15 @@ class aggregate_distribution:
         else:
             return dpdf
 
+    # ABSTRACT FUNCTIONS
+
     def compile_aggregate_distribution(self):
         '''
         Classes to inherit and implement this function!
         '''
         raise NotImplementedError
 
-    def thin_frequency(n: float):
+    def thin_frequency(self, n: float):
         '''
         Redefine the frequency distribution as a result of thinning.
 
@@ -202,3 +232,20 @@ class aggregate_distribution:
         The variance and definition will depend on the underyling frequency itself so this will need custom implementation!
         '''
         raise NotImplementedError
+
+    # INTERNAL FUNCTIONS
+
+    def _compile_aggregate_cdf(self):
+        self.agg_cdf = np.cumsum(self.agg_pdf)
+
+    def _validate_gross(self):
+        '''
+        Procedure to check that mean and variance of the generated aggregate loss are equal to the theoretical values, within some tolerance.
+        '''
+        self.diagnostics = {
+                'Distribution_total': np.sum(self.agg_pdf),
+                'Theoretical_mean': self.agg_mean(theoretical=True),
+                'Agg_mean': self.agg_mean(theoretical=False),
+                'Theoretical_var': self.agg_variance(theoretical=True),
+                'Agg_var': self.agg_variance(theoretical=False)
+                }
