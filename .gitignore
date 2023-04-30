@@ -1,4 +1,2 @@
 *.DS_Store
-Scripts/.vscode/launch.json
-Notebooks/Name_standardizations/name_standardizations.pdf
 *.pyc

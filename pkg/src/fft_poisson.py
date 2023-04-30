@@ -3,6 +3,7 @@ import numpy as np
 from scipy.stats import poisson
 from pkg.src.agg_base import aggregate_distribution
 
+
 class poisson_fft_agg(aggregate_distribution):
     '''
     Define and build an aggregate distribution using a Poisson frequency via Fourier transform.
