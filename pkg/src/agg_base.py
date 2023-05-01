@@ -166,7 +166,7 @@ class aggregate_distribution:
 
     def setup_layer(self,
                     excess: float,
-                    limit: float,
+                    limit: float | None,
                     inplace: bool = True):
         '''
         Set up a suitable insurance structure with each-and-avery excess and limits.
@@ -178,7 +178,7 @@ class aggregate_distribution:
         excess: float,
             Excess retained (by insured)
         limit: float
-            Limit, above which losses are ceded
+            Limit, above which losses are ceded. Use None for no limit.
         inplace: bool [Optional]
             If set, we overwrite the current discretized severity PDF, otherwise, return the discretized PDF as a vector, which can be inserted into another object
 
@@ -195,14 +195,14 @@ class aggregate_distribution:
             self.discretize_pdf()
 
         # Discretize the limit and excess points
-        lh = int(limit / self.h)
+        lh = int(limit / self.h) if limit is not None else self.M - 1
         xh = int(excess / self.h)
 
         p_xs_survival = 1 - np.sum(self.severity_dpdf[:xh])
 
         # Treatment of excess
         dpdf = np.zeros(self.M)
-        dpdf[:lh] = self.severity_dpdf[range(xh, xh + lh)] / p_xs_survival
+        dpdf[:min(lh, self.M - 1)] = self.severity_dpdf[range(xh, min(xh + lh, self.M - 1))] / p_xs_survival
 
         # Treatment of limit
         dpdf[lh] = 1 - dpdf.sum()
@@ -212,6 +212,57 @@ class aggregate_distribution:
 
             # Also override the frequency
             self.thin_frequency(p_xs_survival)
+        else:
+            return dpdf
+
+    def setup_agg_layer(self,
+                        agg_excess: float,
+                        agg_limit: float | None,
+                        inplace: bool = True):
+        '''
+        Set up aggregate layer modifiers, overwriting the agg_pdf and cdf if `inplace` is set to True.
+
+        Parameters
+        ----------
+        agg_excess: float,
+            Aggregate excess retained (by insured)
+        agg_limit: float | None
+            Aggregate limit, above which losses are ceded. None implies infinite limit.
+        inplace: bool [Optional]
+            If set, we overwrite the current discretized aggregate PDF, otherwise, return the discretized PDF as a vector, which can be inserted into another object
+
+        Returns
+        -------
+        dpdf: np.ndarray | None
+            Discretized aggregate PDF after layer modification (only when inplace is not set to True)
+        '''
+
+        # Function should only be available after compilation
+        if self.agg_cdf is None:
+            if self.agg_pdf is None:
+                self.compile_aggregate_distribution()
+            else:
+                self._compile_aggregate_cdf()
+
+        # Cut up the aggregate pdf
+        M = self.agg_pdf.shape[0]
+        alh = int(agg_limit / self.h) if agg_limit is not None else M - 1
+        axh = int(agg_excess / self.h)
+
+        p_xs_survival = 1 - np.sum(self.agg_pdf[:axh])
+
+        # Treatment of excess
+        dpdf = np.zeros(M)
+        dpdf[:min(alh, M - 1)] = self.agg_pdf[range(axh, min(axh + alh, M - 1))] / p_xs_survival
+
+        # Treatment of limit
+        dpdf[alh] = 1 - dpdf.sum()
+
+        if inplace:
+            self.agg_pdf = dpdf
+
+            # Regenerate the CDF
+            self._compile_aggregate_cdf()
         else:
             return dpdf
 

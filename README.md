@@ -10,12 +10,12 @@ Aggregate distributions are defined as a base class. Underlying distributions ca
 
 1. Aggregate distribution with underlying Poisson frequency has closed form Fourier transform. Use the class [`poisson_fft_agg`](pkg/src/fft_poisson.py) from to parameterize suitable underlying Poisson distribution and specify a severity distribution.
     The Fourier transformed aggregate distribution with underlying Poisson parameter $\lambda$ is given by:
-    $$\exp\Big( \lambda (\hat(p)_X - 1) \Big)$$
+    $$\exp\Big( \lambda (\hat{p}_X - 1) \Big)$$
 2. Similar arguments for the negative binomial frequency. Use the class [`nb_fft_agg`](pkg/src/fft_nb.py), specify the frequency parameters and specify a severity distribution.
     The Fourier transformed aggregate distribution with underlying negative binomial mean $\lambda$ and coefficent of variation (variance-to-mean ratio) $\nu$ is given by:
-    $$\left(\frac{1}{1+(\nu-1)(1-\hat(p)_X)}\right)^{\frac{\lambda}{\nu-1}}$$
+    $$\left(\frac{1}{1+(\nu-1)(1-\hat{p}_X)}\right)^{\frac{\lambda}{\nu-1}}$$
 
-where $\hat(p)_X$ is the Fourier transformed severity PDF.
+where $\hat{p}_X$ is the Fourier transformed severity PDF.
 
 ### Frequency thinning
 
