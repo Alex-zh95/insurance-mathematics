@@ -104,7 +104,7 @@ class aggregate_distribution:
         '''
         Returns the variance of the aggregate distribution. If `theoretical` is set to true, we return
 
-        E(frequency)*V(severity) + V(frequency)*V(frequency)^2
+        E(frequency)*V(severity) + V(frequency)*E(frequency)^2
 
         Otherwise return the approximation
         '''
@@ -134,6 +134,55 @@ class aggregate_distribution:
 
         # Pass corresponding losses
         return self.losses[indices]
+        
+        
+    def agg_pdf(self, x: float | Tuple):
+        '''
+        Return the pdf of aggregate. We can only use the discretized severity for this.
+
+        Parameters
+        ----------
+        x: float
+            Loss amount (must be in range of loss vector
+
+        Returns
+        -------
+        result: np.ndarray
+            Corresponding pdf on aggregate distribution
+        '''
+        _x = np.array([x]) if isinstance(x, float) else np.array(x)
+        
+        assert self.losses.min() <= _x <= self.losses.max(), "loss x out of scope"
+
+        # Obtain the relevant index of the _x, including interpolation if needed
+        indices = [bisect.bisect(self.losses, xi) for xi in _x]
+
+        # Pass corresponding pdf output
+        return self.agg_pdf[indices]
+        
+    def agg_cdf(self, x: float | Tuple):
+        '''
+        Return the cdf of aggregate. We can only use the discretized severity for this.
+
+        Parameters
+        ----------
+        x: float
+            Loss amount (must be in range of loss vector
+
+        Returns
+        -------
+        result: np.ndarray
+            Corresponding cdf on aggregate distribution
+        '''
+        _x = np.array([x]) if isinstance(x, float) else np.array(x)
+        
+        assert self.losses.min() <= _x <= self.losses.max(), "loss x out of scope"
+
+        # Obtain the relevant index of the _x, including interpolation if needed
+        indices = [bisect.bisect(self.losses, xi) for xi in _x]
+
+        # Pass corresponding pdf output
+        return self.agg_cdf[indices]
 
     def discretize_pdf(self,
                        X: np.ndarray | None = None
