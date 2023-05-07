@@ -36,6 +36,8 @@ def gross_poisson_fft_test():
     print(f'PPF@90% = {gross_agg.agg_ppf(0.9)}')
     print('\n')
 
+    return gross_agg
+
 
 def limited_poisson_fft_test():
     print('Testing layered insurance structure with following:')
@@ -79,3 +81,5 @@ def limited_poisson_fft_test():
     print(f'Var = {agg.agg_variance(theoretical=False)}')
     print(f'PPF@90% = {agg.agg_ppf(0.9)}')
     print('\n')
+
+    return agg

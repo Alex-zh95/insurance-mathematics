@@ -136,7 +136,7 @@ class aggregate_distribution:
         return self.losses[indices]
         
         
-    def agg_pdf(self, x: float | Tuple):
+    def get_agg_pdf(self, x: float | Tuple):
         '''
         Return the pdf of aggregate. We can only use the discretized severity for this.
 
@@ -152,7 +152,7 @@ class aggregate_distribution:
         '''
         _x = np.array([x]) if isinstance(x, float) else np.array(x)
         
-        assert self.losses.min() <= _x <= self.losses.max(), "loss x out of scope"
+        assert ((x >= self.losses.min()).all()) & ((x <= self.losses.max()).all()), "loss x out of scope"
 
         # Obtain the relevant index of the _x, including interpolation if needed
         indices = [bisect.bisect(self.losses, xi) for xi in _x]
@@ -160,7 +160,7 @@ class aggregate_distribution:
         # Pass corresponding pdf output
         return self.agg_pdf[indices]
         
-    def agg_cdf(self, x: float | Tuple):
+    def get_agg_cdf(self, x: float | Tuple):
         '''
         Return the cdf of aggregate. We can only use the discretized severity for this.
 
@@ -176,7 +176,7 @@ class aggregate_distribution:
         '''
         _x = np.array([x]) if isinstance(x, float) else np.array(x)
         
-        assert self.losses.min() <= _x <= self.losses.max(), "loss x out of scope"
+        assert ((x >= self.losses.min()).all()) & ((x <= self.losses.max()).all()), "loss x out of scope"
 
         # Obtain the relevant index of the _x, including interpolation if needed
         indices = [bisect.bisect(self.losses, xi) for xi in _x]

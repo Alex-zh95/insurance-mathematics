@@ -29,6 +29,11 @@ For a $\text{NB}(n, p)$ distribution, thinning with factor $\alpha$ yields anoth
 
 $$\text{NB}\left(n, \frac{\alpha p}{1-p+\alpha p} \right)$$
 
+## TODOs:
+
+- Implement/inherit from fft sub-classes for custom contracts (e.g. stop-loss program with dropdown post AAD/AAL break)
+- Inherit from aggregate base class methods for simulation techniques (will be useful for tests)
+
 # Sources
 
 1. Goelden, Heinz-Willi; Hess, Klaus Th.; Morlock, Martin; Schmidt, Klaus D; Schröter, Klaus J. - *Schadenversicherungsmathematik* - Springe Spektrum
