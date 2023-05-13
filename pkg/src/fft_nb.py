@@ -60,10 +60,12 @@ class nb_fft_agg(aggregate_distribution):
         '''
         Thinning the NB distribution yields another NB distribution with modified parameter:
 
-        NB(n, k*p/(1-p+k*p))
+        NB(n, k*q/(1-q+k*q))
+
+        where q is the probability of failure given n successes
         '''
-        p = self.frequency['properties'][1]
-        self.frequency['properties'][1] = k*p/(1-p+k*p)
+        q = 1-self.frequency['properties'][1]  # scipy.stats definition uses p as "probability of success" but we need probability of failure
+        self.frequency['properties'][1] = 1-k*q/(1-q+k*q)
 
     def compile_aggregate_distribution(self):
         '''
