@@ -1,7 +1,7 @@
 {
     "insurance_structure": {
         "Frequency": 1.2,
-        "Limits": [0, 30, 100, 200, 500],
+        "Limits": [1.0, 5.0],
         "Severity_distribution": "gpd",
         "Severity_param0": 0.378,
         "Severity_param1": 0.000,

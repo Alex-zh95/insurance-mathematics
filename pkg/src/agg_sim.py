@@ -2,8 +2,8 @@ import numpy as np
 import bisect
 from joblib import Parallel, delayed
 
-from scipy import stats
 from pkg.src.agg_base import aggregate_distribution
+
 
 class agg_sim(aggregate_distribution):
     '''
@@ -23,7 +23,7 @@ class agg_sim(aggregate_distribution):
     frequency_distribution: as described above
     severity_distribution: as described above
 
-    n: int, default = 1,000,000
+    n: int, default = 100,000
         Number of simulations to run
     excess: float, default = 0
         Set the each and every excess
@@ -45,7 +45,7 @@ class agg_sim(aggregate_distribution):
             self,
             frequency_distribution: dict,
             severity_distribution: dict,
-            n: int = 1000000,
+            n: int = 100000,
             excess: float = 0,
             limit: float | None = None,
             agg_excess: float = 0,
@@ -54,11 +54,10 @@ class agg_sim(aggregate_distribution):
         super().__init__(frequency_distribution, severity_distribution)
         self.n_sims = n
 
-        self.xs = excess 
-        self.l = limit 
+        self.xs = excess
+        self.lim = limit
         self.agg_d = agg_excess
         self.agg_l = agg_limit
-
 
     def compile_aggregate_distribution(self):
         '''
@@ -69,26 +68,27 @@ class agg_sim(aggregate_distribution):
         Generate the aggregate loss simulation by adding all severities.
         '''
 
-        def _generate_severities(freq, sev, xs: float, l: float | None, agg_d: float, agg_l: float | None):
+        def _generate_severities(freq):
             '''
             Internal function to generate the severities, including modifications to excess and limit if needed (None when not).
             '''
-            severities = sev['dist'].rvs(*sev['properties'], size=freq)
+            severities = self.severity['dist'].rvs(*self.severity['properties'], size=freq)
 
-            severities = np.fmax(severities - xs, 0)
+            severities = np.fmax(severities - self.xs, 0)
 
-            if l is not None:
-                severities = np.fmin(severities, l)
+            if self.lim is not None:
+                severities = np.fmin(severities, self.lim - self.xs)
 
-            return min(max(severities.sum() - agg_d, 0), agg_l) if agg_l is not None else max(severities.sum() - agg_d, 0)
+            return min(max(severities.sum() - self.agg_d, 0), self.agg_l) if self.agg_l is not None else max(severities.sum() - self.agg_d, 0)
+
+        n_losses = self.frequency['dist'].rvs(*self.frequency['properties'], size=self.n_sims)
 
         parallel_pool = Parallel(n_jobs=-1)
-        n_losses = self.frequency['dist'].rvs(*self.frequency['properties'], size=self.n_sims)
-        delayed_generate_severities = [delayed(_generate_severities)(n, self.severity, self.xs, self.l, self.agg_d, self.agg_l) for n in n_losses]
+        delayed_generate_severities = [delayed(_generate_severities)(n) for n in n_losses]
 
         self.losses = np.sort(parallel_pool(delayed_generate_severities))
 
-        if (self.l is None) & (self.xs is None) & (self.agg_d is None) & (self.agg_l is None):
+        if (self.lim is None) & (self.xs is None) & (self.agg_d is None) & (self.agg_l is None):
             self._validate_gross()
 
     # Aggregate statistics overrides
@@ -124,7 +124,7 @@ class agg_sim(aggregate_distribution):
 
     def agg_ppf(self, q: float | list):
         '''
-        Return the percentage point of aggregate. 
+        Return the percentage point of aggregate.
 
         Parameters
         ----------
@@ -166,7 +166,7 @@ class agg_sim(aggregate_distribution):
     def setup_layer(self,
                     excess: float,
                     limit: float | None,
-                    agg_excess : float = 0,
+                    agg_excess: float = 0,
                     agg_limit: float | None = None,
                     inplace: bool = True):
         '''
@@ -189,8 +189,8 @@ class agg_sim(aggregate_distribution):
             agg_sim object with new parameters (only when inplace is not set to True)
         '''
         if inplace:
-            self.xs = excess 
-            self.l = limit 
+            self.xs = excess
+            self.lim = limit
             self.agg_d = agg_excess
             self.agg_l = agg_limit
 
@@ -225,6 +225,7 @@ class agg_sim(aggregate_distribution):
         pass
 
     def thin_frequency(self, n: float):
-        '''Function would be frequency-distribution-specific. Not implemented here to maintain flexibility for the purpose of simulation - consider implmenting outside of this or inheriting from agg_sim if thinning is desired.'''
-        pass
+        '''Function would be frequency-distribution-specific. Not implemented here to maintain flexibility for the purpose of simulation
 
+        Consider implmenting outside of this or inheriting from agg_sim if thinning is desired.'''
+        pass
