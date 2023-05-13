@@ -77,14 +77,14 @@ class agg_sim(aggregate_distribution):
             severities = np.fmax(severities - self.xs, 0)
 
             if self.lim is not None:
-                severities = np.fmin(severities, self.lim - self.xs)
+                severities = np.fmin(severities, self.lim)
 
             return min(max(severities.sum() - self.agg_d, 0), self.agg_l) if self.agg_l is not None else max(severities.sum() - self.agg_d, 0)
 
         n_losses = self.frequency['dist'].rvs(*self.frequency['properties'], size=self.n_sims)
 
         parallel_pool = Parallel(n_jobs=-1)
-        delayed_generate_severities = [delayed(_generate_severities)(n) for n in n_losses]
+        delayed_generate_severities = (delayed(_generate_severities)(n) for n in n_losses)
 
         self.losses = np.sort(parallel_pool(delayed_generate_severities))
 
