@@ -90,3 +90,5 @@ class nb_fft_agg(aggregate_distribution):
 
         if not self._layer:
             self._validate_gross()
+        else:
+            self._validate_gross('Partial')

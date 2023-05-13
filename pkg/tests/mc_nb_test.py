@@ -90,9 +90,8 @@ def agg_lim_test():
     agg.compile_aggregate_distribution()
 
     # Inspect the validation by calling diagnostics
-    print('No diagnostics can be made for net-of-excess but we can check following:')
-    print(f'Mean = {agg.agg_mean(theoretical=False)}')
-    print(f'Var = {agg.agg_variance(theoretical=False)}')
+    print('Diagnostics:')
+    print(agg.diagnostics)
     print(f'PPF@90% = {agg.agg_ppf(0.9)}')
     print('\n')
 
@@ -104,20 +103,11 @@ def agg_lim_test():
             limit=lim
             )
 
-    # We need the thinning of frequency (not implemented in class)
-    # lim_sim.compile_aggregate_distribution()
-    #
-    # p = lim_sim.frequency['properties'][1]
-    # # k is excess survival
-    # k = 1-lim_sim.get_agg_cdf(lim_sim.xs)
-    # lim_sim.frequency['properties'][1] = k*p/(1-p+k*p)
-
-    # Simlate aggregate distribution - yes we'd have to do this twice
     lim_sim.compile_aggregate_distribution()
 
     print('Simulation diagnostics:')
-    print(f'Aggregate mean: {lim_sim.agg_mean(False):.5f}')
-    print(f'Aggregate var: {lim_sim.agg_variance(False):.5f}')
+    print(f'Aggregate mean: {lim_sim.agg_mean("False"):.5f}')
+    print(f'Aggregate var: {lim_sim.agg_variance("False"):.5f}')
     print(f'PPF@90% = {lim_sim.agg_ppf(0.9)}')
 
     return lim_sim

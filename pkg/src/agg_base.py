@@ -84,7 +84,7 @@ class aggregate_distribution:
         return self.severity['dist'].var(*self.severity['properties'])
 
     def agg_mean(self,
-                 theoretical: bool = True
+                 theoretical: str = 'True'
                  ):
         '''
         Returns the mean of the aggregate distribution. If `theoretical` is set to true, we return
@@ -93,13 +93,15 @@ class aggregate_distribution:
 
         Otherwise return the approximation
         '''
-        if theoretical:
+        if theoretical == 'True':
             return self.get_severity_mean() * self.get_frequency_mean()
+        elif theoretical == 'Partial':
+            return np.sum(self.severity_dpdf * self.losses) * self.get_frequency_mean()
         else:
             return np.sum(self.agg_pdf * self.losses)
 
     def agg_variance(self,
-                     theoretical: bool = True
+                     theoretical: str = 'True'
                      ):
         '''
         Returns the variance of the aggregate distribution. If `theoretical` is set to true, we return
@@ -108,8 +110,12 @@ class aggregate_distribution:
 
         Otherwise return the approximation
         '''
-        if theoretical:
+        if theoretical == 'True':
             return self.get_frequency_mean()*self.get_severity_variance() + self.get_frequency_variance()*(self.get_severity_mean())**2
+        elif theoretical == 'Partial':
+            severity_mean = np.sum(self.severity_dpdf * self.losses)
+            severity_var = np.sum(self.severity_dpdf * self.losses**2) - severity_mean**2
+            return self.get_frequency_mean()*severity_var + self.get_frequency_variance()*(severity_mean)**2
         else:
             return np.sum(self.agg_pdf * (self.losses**2)) - self.agg_mean(theoretical=False)**2
 
@@ -338,14 +344,14 @@ class aggregate_distribution:
     def _compile_aggregate_cdf(self):
         self.agg_cdf = np.cumsum(self.agg_pdf)
 
-    def _validate_gross(self):
+    def _validate_gross(self, theoretical: str = 'True'):
         '''
         Procedure to check that mean and variance of the generated aggregate loss are equal to the theoretical values, within some tolerance.
         '''
         self.diagnostics = {
                 'Distribution_total': np.sum(self.agg_pdf),
-                'Theoretical_mean': self.agg_mean(theoretical=True),
-                'Agg_mean': self.agg_mean(theoretical=False),
-                'Theoretical_var': self.agg_variance(theoretical=True),
-                'Agg_var': self.agg_variance(theoretical=False)
+                'Theoretical_mean': self.agg_mean(theoretical=theoretical),
+                'Agg_mean': self.agg_mean(theoretical='False'),
+                'Theoretical_var': self.agg_variance(theoretical=theoretical),
+                'Agg_var': self.agg_variance(theoretical='False')
                 }

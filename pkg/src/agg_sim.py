@@ -78,20 +78,22 @@ class agg_sim(aggregate_distribution):
             severities = np.fmax(severities - xs, 0)
 
             if l is not None:
-                severities = np.fmin(severities, l - xs)
+                severities = np.fmin(severities, l)
 
-            return min(max(severities.sum() - agg_d, 0), agg_l - agg_d) if agg_l is not None else max(severities.sum() - agg_d, 0)
+            return min(max(severities.sum() - agg_d, 0), agg_l) if agg_l is not None else max(severities.sum() - agg_d, 0)
 
         parallel_pool = Parallel(n_jobs=-1)
         n_losses = self.frequency['dist'].rvs(*self.frequency['properties'], size=self.n_sims)
         delayed_generate_severities = [delayed(_generate_severities)(n, self.severity, self.xs, self.l, self.agg_d, self.agg_l) for n in n_losses]
 
-        self.losses = parallel_pool(delayed_generate_severities)
-        self.losses = np.sort(self.losses)
+        self.losses = np.sort(parallel_pool(delayed_generate_severities))
+
+        if (self.l is None) & (self.xs is None) & (self.agg_d is None) & (self.agg_l is None):
+            self._validate_gross()
 
     # Aggregate statistics overrides
     def agg_mean(self,
-                 theoretical: bool = True
+                 theoretical: str = "True"
                  ):
         '''
         Returns the mean of the aggregate distribution. If `theoretical` is set to true, we return
@@ -100,13 +102,13 @@ class agg_sim(aggregate_distribution):
 
         Otherwise return the simulated mean
         '''
-        if theoretical:
+        if theoretical == "True":
             return self.get_severity_mean() * self.get_frequency_mean()
         else:
             return np.mean(self.losses)
 
     def agg_variance(self,
-                     theoretical: bool = True
+                     theoretical: str = "True"
                      ):
         '''
         Returns the variance of the aggregate distribution. If `theoretical` is set to true, we return
@@ -115,7 +117,7 @@ class agg_sim(aggregate_distribution):
 
         Otherwise return the simulated variance
         '''
-        if theoretical:
+        if theoretical == "True":
             return self.get_frequency_mean()*self.get_severity_variance() + self.get_frequency_variance()*(self.get_severity_mean())**2
         else:
             return np.var(self.losses, ddof=1)
@@ -156,7 +158,7 @@ class agg_sim(aggregate_distribution):
 
         # Obtain empirical pdf by using obtaining relative position in vector
         indices = np.array([bisect.bisect(self.losses, xi) for xi in _x])
-        agg_cdf = indices/self.n_sims
+        agg_cdf = indices/self.losses.shape[0]
 
         # Pass corresponding pdf output
         return agg_cdf
