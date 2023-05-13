@@ -104,7 +104,7 @@ class aggregate_distribution:
         '''
         Returns the variance of the aggregate distribution. If `theoretical` is set to true, we return
 
-        E(frequency)*V(severity) + V(frequency)*E(frequency)^2
+        E(frequency)*V(severity) + V(frequency)*E(severity)^2
 
         Otherwise return the approximation
         '''
@@ -119,7 +119,7 @@ class aggregate_distribution:
 
         Parameters
         ----------
-        q: float
+        q: float | Tuple
             Percentile (between 0 and 1)
 
         Returns
@@ -143,7 +143,7 @@ class aggregate_distribution:
         Parameters
         ----------
         x: float
-            Loss amount (must be in range of loss vector
+            Loss amount (must be in range of loss vector)
 
         Returns
         -------
@@ -167,7 +167,7 @@ class aggregate_distribution:
         Parameters
         ----------
         x: float
-            Loss amount (must be in range of loss vector
+            Loss amount (must be in range of loss vector)
 
         Returns
         -------
@@ -218,7 +218,7 @@ class aggregate_distribution:
                     limit: float | None,
                     inplace: bool = True):
         '''
-        Set up a suitable insurance structure with each-and-avery excess and limits.
+        Set up a suitable insurance structure with each-and-every excess and limits.
 
         Layer designed by adjusting probability of incurring losses after excess and limit.
 

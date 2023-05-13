@@ -10,7 +10,7 @@ class nb_fft_agg(aggregate_distribution):
 
     Inherits: aggregate_distribution
 
-    Distributions both taking the form:
+    Distributions take the form:
 
     {
         dist: scipy.stats
