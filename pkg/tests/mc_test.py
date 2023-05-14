@@ -102,7 +102,7 @@ def agg_lim_test():
             severity_distribution=x_gpd,
             excess=xs,
             limit=lim,
-            n=int(10e3)
+            n=int(1e6)
             )
 
     lim_sim.compile_aggregate_distribution()
