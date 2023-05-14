@@ -59,6 +59,19 @@ class agg_sim(aggregate_distribution):
         self.agg_d = agg_excess
         self.agg_l = agg_limit
 
+    def _generate_severities(self, freq):
+        '''
+        Internal function to generate the severities, including modifications to excess and limit if needed (None when not).
+        '''
+        severities = self.severity['dist'].rvs(*self.severity['properties'], size=freq)
+
+        severities = np.fmax(severities - self.xs, 0)
+
+        if self.lim is not None:
+            severities = np.fmin(severities, self.lim)
+
+        return min(max(severities.sum() - self.agg_d, 0), self.agg_l) if self.agg_l is not None else max(severities.sum() - self.agg_d, 0)
+
     def compile_aggregate_distribution(self):
         '''
         Generate aggregate PDF and CDF via Monte-Carlo simulation.
@@ -68,23 +81,10 @@ class agg_sim(aggregate_distribution):
         Generate the aggregate loss simulation by adding all severities.
         '''
 
-        def _generate_severities(freq):
-            '''
-            Internal function to generate the severities, including modifications to excess and limit if needed (None when not).
-            '''
-            severities = self.severity['dist'].rvs(*self.severity['properties'], size=freq)
-
-            severities = np.fmax(severities - self.xs, 0)
-
-            if self.lim is not None:
-                severities = np.fmin(severities, self.lim)
-
-            return min(max(severities.sum() - self.agg_d, 0), self.agg_l) if self.agg_l is not None else max(severities.sum() - self.agg_d, 0)
-
         n_losses = self.frequency['dist'].rvs(*self.frequency['properties'], size=self.n_sims)
 
         parallel_pool = Parallel(n_jobs=-1)
-        delayed_generate_severities = (delayed(_generate_severities)(n) for n in n_losses)
+        delayed_generate_severities = (delayed(self._generate_severities)(n) for n in n_losses)
 
         self.losses = np.sort(parallel_pool(delayed_generate_severities))
 
