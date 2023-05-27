@@ -192,7 +192,10 @@ class aggregate_distribution:
         return self.agg_cdf[indices]
 
     def discretize_pdf(self,
-                       X: np.ndarray | None = None
+                       _dist=None,
+                       _dist_params: list | None = None,
+                       X: np.ndarray | None = None,
+                       h_step: float | None = None
                        ):
         '''
         Discretize a provided severity distribution according to:
@@ -201,17 +204,28 @@ class aggregate_distribution:
 
         Parameters
         ----------
+        _dist: scipy-like obj [optional]
+            Custom distribution for discretization (note it must implement at minimum the .cdf(...) method), if left blank, we use self.severity
+        _dist_params: list [optional]
+            Optional parameters for the passed in custom distribution in _dist
         X: np.ndarray [optional],
             Input for the pdf. If None is passed, then we use self.losses and update internal discrete severity pdf
+        h_step: float [optional]
+            Custom discretization step if desired. This is mainly useful for if we want to discretize a custom probability function
 
         Returns
         -------
         dpdf: np.ndarray | None
             Discretized pdf corresponding to the input X, if provided, otherwise None
         '''
-        dist = self.severity['dist']
-        dist_params = self.severity['properties']
-        h = self.h
+        if (_dist is None) & (h_step is None):
+            dist = self.severity['dist']
+            dist_params = self.severity['properties']
+            h = self.h
+        else:
+            dist = _dist
+            dist_params = _dist_params
+            h = h_step
 
         if X is None:
             dpdf = dist.cdf(self.losses+h/2, *dist_params) - dist.cdf(self.losses-h/2, *dist_params)
