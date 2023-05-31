@@ -72,4 +72,4 @@ def nb_mle_get_prob(r: float, data: np.ndarray) -> float:
         Shape parameter
     '''
     N = data.shape[0]
-    return N*r/(N*r + np.sum(data.values))
+    return N*r/(N*r + np.sum(data))
