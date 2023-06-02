@@ -1,6 +1,6 @@
 # import numpy as np
 
-from pkg.src.fft_poisson import poisson_fft_agg
+from ins_mat.agg_dist.fft_poisson import poisson_fft_agg
 from scipy.stats import genpareto
 
 
@@ -33,7 +33,7 @@ def gross_poisson_fft_test():
     # Inspect the validation by calling diagnostics
     print('Diagnostics:')
     print(gross_agg.diagnostics)
-    print(f'PPF@90% = {gross_agg.agg_ppf(0.9)}')
+    print(f'PPF@90% = {gross_agg.ppf(0.9)}')
     print('\n')
 
     return gross_agg
@@ -77,9 +77,9 @@ def limited_poisson_fft_test():
 
     # Inspect the validation by calling diagnostics
     print('No diagnostics can be made for net-of-excess but we can check following:')
-    print(f'Mean = {agg.agg_mean(theoretical=False)}')
-    print(f'Var = {agg.agg_variance(theoretical=False)}')
-    print(f'PPF@90% = {agg.agg_ppf(0.9)}')
+    print(f'Mean = {agg.mean(theoretical=False)}')
+    print(f'Var = {agg.var(theoretical=False)}')
+    print(f'PPF@90% = {agg.ppf(0.9)}')
     print('\n')
 
     return agg

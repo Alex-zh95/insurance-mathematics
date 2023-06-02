@@ -2,7 +2,7 @@ import numpy as np
 import bisect
 from joblib import Parallel, delayed
 
-from pkg.src.agg_base import aggregate_distribution
+from ins_mat.agg_dist.agg_base import aggregate_distribution
 
 
 class agg_sim(aggregate_distribution):
@@ -92,9 +92,9 @@ class agg_sim(aggregate_distribution):
             self._validate_gross()
 
     # Aggregate statistics overrides
-    def agg_mean(self,
-                 theoretical: str = "True"
-                 ):
+    def mean(self,
+             theoretical: str = "True"
+             ):
         '''
         Returns the mean of the aggregate distribution. If `theoretical` is set to true, we return
 
@@ -107,9 +107,9 @@ class agg_sim(aggregate_distribution):
         else:
             return np.mean(self.losses)
 
-    def agg_variance(self,
-                     theoretical: str = "True"
-                     ):
+    def var(self,
+            theoretical: str = "True"
+            ):
         '''
         Returns the variance of the aggregate distribution. If `theoretical` is set to true, we return
 
@@ -122,7 +122,7 @@ class agg_sim(aggregate_distribution):
         else:
             return np.var(self.losses, ddof=1)
 
-    def agg_ppf(self, q: float | list):
+    def ppf(self, q: float | list):
         '''
         Return the percentage point of aggregate.
 
@@ -138,7 +138,7 @@ class agg_sim(aggregate_distribution):
         '''
         return np.quantile(self.losses, q)
 
-    def get_agg_cdf(self, x: float | list):
+    def cdf(self, x: float | list):
         '''
         Return the cdf of aggregate.
 
@@ -220,7 +220,7 @@ class agg_sim(aggregate_distribution):
                 inplace=inplace
                 )
 
-    def get_agg_pdf(self, x: float | list):
+    def pdf(self, x: float | list):
         '''This function not needed for simulation'''
         pass
 

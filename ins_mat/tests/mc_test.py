@@ -1,6 +1,6 @@
-from pkg.src.agg_sim import agg_sim
-from pkg.src.fft_nb import nb_fft_agg
-from pkg.src.fft_poisson import poisson_fft_agg
+from ins_mat.agg_dist.agg_sim import agg_sim
+from ins_mat.agg_dist.fft_nb import nb_fft_agg
+from ins_mat.agg_dist.fft_poisson import poisson_fft_agg
 from scipy.stats import genpareto, nbinom, poisson
 
 
@@ -34,7 +34,7 @@ def agg_test():
     # Inspect the validation by calling diagnostics
     print('Diagnostics:')
     print(gross_agg.diagnostics)
-    print(f'PPF@90% = {gross_agg.agg_ppf(0.9)}')
+    print(f'PPF@90% = {gross_agg.ppf(0.9)}')
     print('\n')
 
     # Now apply the simulations
@@ -47,9 +47,9 @@ def agg_test():
     gross_sim.compile_aggregate_distribution()
 
     print('Simulation diagnostics:')
-    print(f'Aggregate mean: {gross_sim.agg_mean(False):.5f}')
-    print(f'Aggregate var: {gross_sim.agg_variance(False):.5f}')
-    print(f'PPF@90% = {gross_sim.agg_ppf(0.9)}')
+    print(f'Aggregate mean: {gross_sim.mean(False):.5f}')
+    print(f'Aggregate var: {gross_sim.var(False):.5f}')
+    print(f'PPF@90% = {gross_sim.ppf(0.9)}')
 
     return gross_sim
 
@@ -93,7 +93,7 @@ def agg_lim_test():
     # Inspect the validation by calling diagnostics
     print('Diagnostics:')
     print(agg.diagnostics)
-    print(f'PPF@90% = {agg.agg_ppf(0.9)}')
+    print(f'PPF@90% = {agg.ppf(0.9)}')
     print('\n')
 
     # Now apply the simulations
@@ -108,8 +108,8 @@ def agg_lim_test():
     lim_sim.compile_aggregate_distribution()
 
     print('Simulation diagnostics:')
-    print(f'Aggregate mean: {lim_sim.agg_mean("False"):.5f}')
-    print(f'Aggregate var: {lim_sim.agg_variance("False"):.5f}')
-    print(f'PPF@90% = {lim_sim.agg_ppf(0.9)}')
+    print(f'Aggregate mean: {lim_sim.mean("False"):.5f}')
+    print(f'Aggregate var: {lim_sim.var("False"):.5f}')
+    print(f'PPF@90% = {lim_sim.ppf(0.9)}')
 
     return lim_sim

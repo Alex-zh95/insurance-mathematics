@@ -26,7 +26,7 @@ class aggregate_distribution:
     Properties
     ----------
     losses: vector of possible losses (scaled, if needed)
-    agg_pdf: accessible discretized aggregate loss pdf
+    pdf: accessible discretized aggregate loss pdf
 
     Callables
     ---------
@@ -52,8 +52,8 @@ class aggregate_distribution:
         self.M = grid
 
         self.severity_dpdf = None
-        self.agg_pdf = None
-        self.agg_cdf = None
+        self._pdf = None
+        self._cdf = None
         self.losses = None
 
         self.diagnostics = None
@@ -83,9 +83,9 @@ class aggregate_distribution:
         '''
         return self.severity['dist'].var(*self.severity['properties'])
 
-    def agg_mean(self,
-                 theoretical: str = 'True'
-                 ):
+    def mean(self,
+             theoretical: str = 'True'
+             ):
         '''
         Returns the mean of the aggregate distribution. If `theoretical` is set to true, we return
 
@@ -100,11 +100,11 @@ class aggregate_distribution:
         elif theoretical == 'Partial':
             return np.sum(self.severity_dpdf * self.losses) * self.get_frequency_mean()
         else:
-            return np.sum(self.agg_pdf * self.losses)
+            return np.sum(self._pdf * self.losses)
 
-    def agg_variance(self,
-                     theoretical: str = 'True'
-                     ):
+    def var(self,
+            theoretical: str = 'True'
+            ):
         '''
         Returns the variance of the aggregate distribution. If `theoretical` is set to true, we return
 
@@ -119,9 +119,9 @@ class aggregate_distribution:
             severity_var = np.sum(self.severity_dpdf * self.losses**2) - severity_mean**2
             return self.get_frequency_mean()*severity_var + self.get_frequency_variance()*(severity_mean)**2
         else:
-            return np.sum(self.agg_pdf * (self.losses**2)) - self.agg_mean(theoretical=False)**2
+            return np.sum(self._pdf * (self.losses**2)) - self.mean(theoretical='False')**2
 
-    def agg_ppf(self, q: float | Tuple):
+    def ppf(self, q: float | Tuple):
         '''
         Return the percentage point of aggregate. We can only use the discretized severity for this.
 
@@ -138,12 +138,12 @@ class aggregate_distribution:
         _q = np.array([q]) if isinstance(q, float) else np.array(q)
 
         # Obtain the relevant index of the _q, including interpolation if needed
-        indices = [bisect.bisect(self.agg_cdf, qi) for qi in _q]
+        indices = [bisect.bisect(self._cdf, qi) for qi in _q]
 
         # Pass corresponding losses
         return self.losses[indices]
 
-    def get_agg_pdf(self, x: float | Tuple):
+    def pdf(self, x: float | Tuple):
         '''
         Return the pdf of aggregate. We can only use the discretized severity for this.
 
@@ -165,9 +165,9 @@ class aggregate_distribution:
         indices = [bisect.bisect(self.losses, xi) for xi in _x]
 
         # Pass corresponding pdf output
-        return self.agg_pdf[indices]
+        return self._pdf[indices]
 
-    def get_agg_cdf(self, x: float | Tuple):
+    def cdf(self, x: float | Tuple):
         '''
         Return the cdf of aggregate. We can only use the discretized severity for this.
 
@@ -189,7 +189,7 @@ class aggregate_distribution:
         indices = [bisect.bisect(self.losses, xi) for xi in _x]
 
         # Pass corresponding pdf output
-        return self.agg_cdf[indices]
+        return self._cdf[indices]
 
     def discretize_pdf(self,
                        _dist=None,
@@ -290,7 +290,7 @@ class aggregate_distribution:
                         agg_limit: float | None,
                         inplace: bool = True):
         '''
-        Set up aggregate layer modifiers, overwriting the agg_pdf and cdf if `inplace` is set to True.
+        Set up aggregate layer modifiers, overwriting the aggregate pdf and cdf if `inplace` is set to True.
 
         Parameters
         ----------
@@ -308,28 +308,28 @@ class aggregate_distribution:
         '''
 
         # Function should only be available after compilation
-        if self.agg_cdf is None:
-            if self.agg_pdf is None:
+        if self._cdf is None:
+            if self._pdf is None:
                 self.compile_aggregate_distribution()
             else:
                 self._compile_aggregate_cdf()
 
         # Cut up the aggregate pdf
-        M = self.agg_pdf.shape[0]
+        M = self._pdf.shape[0]
         alh = int(agg_limit / self.h) if agg_limit is not None else M - 1
         axh = int(agg_excess / self.h)
 
-        p_xs_survival = 1 - np.sum(self.agg_pdf[:axh])
+        p_xs_survival = 1 - np.sum(self._pdf[:axh])
 
         # Treatment of excess
         dpdf = np.zeros(M)
-        dpdf[:min(alh, M - 1)] = self.agg_pdf[range(axh, min(axh + alh, M - 1))] / p_xs_survival
+        dpdf[:min(alh, M - 1)] = self._pdf[range(axh, min(axh + alh, M - 1))] / p_xs_survival
 
         # Treatment of limit
         dpdf[alh] = 1 - dpdf.sum()
 
         if inplace:
-            self.agg_pdf = dpdf
+            self._pdf = dpdf
 
             # Regenerate the CDF
             self._compile_aggregate_cdf()
@@ -357,16 +357,16 @@ class aggregate_distribution:
     # INTERNAL FUNCTIONS
 
     def _compile_aggregate_cdf(self):
-        self.agg_cdf = np.cumsum(self.agg_pdf)
+        self._cdf = np.cumsum(self._pdf)
 
     def _validate_gross(self, theoretical: str = 'True'):
         '''
         Procedure to check that mean and variance of the generated aggregate loss are equal to the theoretical values, within some tolerance.
         '''
         self.diagnostics = {
-                'Distribution_total': np.sum(self.agg_pdf),
-                'Theoretical_mean': self.agg_mean(theoretical=theoretical),
-                'Agg_mean': self.agg_mean(theoretical='False'),
-                'Theoretical_var': self.agg_variance(theoretical=theoretical),
-                'Agg_var': self.agg_variance(theoretical='False')
+                'Distribution_total': np.sum(self._pdf),
+                'Theoretical_mean': self.mean(theoretical=theoretical),
+                'Agg_mean': self.mean(theoretical='False'),
+                'Theoretical_var': self.var(theoretical=theoretical),
+                'Agg_var': self.var(theoretical='False')
                 }
