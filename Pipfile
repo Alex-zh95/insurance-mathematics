@@ -9,9 +9,9 @@ pandas = "*"
 scipy = "*"
 matplotlib = "*"
 ipython = "*"
-yfinance = "*"
 seaborn = "*"
 joblib = "*"
+yfinance = "*"
 
 [dev-packages]
 ipykernel = "*"
