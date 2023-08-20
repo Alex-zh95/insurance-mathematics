@@ -22,4 +22,4 @@ from ins_mat.tests import credit_underwriting
 # agg6 = mc_test.agg_lim_test()
 #
 print('Running credit underwriter test')
-prems = credit_underwriting.test()
+prems = credit_underwriting.test(online_refresh=False)

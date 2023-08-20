@@ -11,26 +11,27 @@ def test(
         online_refresh: bool = True,  # Toggle whether to reload risk data
         profit_load: float = 0.4,   # General profit load (typical for reinsurance)
         comms: float = 0.35,  # Commission load (typical brokerage commission)
-        Symb: list = ['TGT', 'BAC', 'MCD', 'SBUX', 'AAPL', 'MSFT', 'GOOG', 'TSLA']
+        Symb: list = ['TGT', 'BAC', 'AAPL', 'MSFT', 'GOOG', 'TSLA', 'XOM', 'VMW', 'ALL', 'AIG', 'SAP']
         ) -> pd.DataFrame:
-    multi_uw = Credit_Underwriter(Symb, risk_free_rate=0.05)
+    if online_refresh:
+        multi_uw = Credit_Underwriter(Symb, risk_free_rate=0.05, maturity=10)
+    else:
+        multi_uw = Credit_Underwriter.from_file("ins_mat/tests/pkls", risk_free_rate=0.05, maturity=10)
+
+    multi_uw.save_all(folder_path="ins_mat/tests/pkls")
+
     multi_uw.get_option_data()
 
     # Accept the suggested volatility estimates (or insert own)
     multi_uw.set_volatility()
 
     # Solve and generate risk premium
-    multi_uw.solve(maturity=10)
+    multi_uw.solve()
 
     output = multi_uw.present()
     print(output)
 
     # Convert from loss cost to technical premium
-    prems = output[['Ticker', 'Risk_Premium']]
-    prems['GWP'] = prems['Risk_Premium'] / (1 - profit_load - comms)
-
-    print(f"Total Premium = {prems['GWP'].sum():,.0f}")
-
-    multi_uw.save_all(folder_path="tests/pkls/*")
+    output['GWP'] = output['Risk_premium'] / (1 - profit_load - comms)
 
     return output

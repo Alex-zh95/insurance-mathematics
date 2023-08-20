@@ -14,17 +14,19 @@ import datetime as dt
 import matplotlib.pyplot as plt
 
 import glob
+from typing import Tuple
 
-from scipy.stats import norm, lognorm
+from scipy.stats import norm
+from scipy.optimize import newton
 from ins_mat.special.risk import risk
-from ins_mat.agg_dist.fft_poisson import poisson_fft_agg
 
 
 class Credit_Underwriter():
     def __init__(self,
                  risks: list[risk] | list[str],
                  risk_free_rate: float = 0.03,
-                 online_load: bool = True
+                 online_load: bool = True,
+                 maturity: float = 1
                  ) -> None:
         '''
         Credit_Underwriter
@@ -43,6 +45,8 @@ class Credit_Underwriter():
             Assumed underlying risk free rate of return - which we assume to be constant.
         online_load: bool = True
             Whether to refresh the listings from internet.
+        maturity: float = 1
+            For derivative instruments considered, look at time to expiry.
         '''
 
         # All dicts specified by ticker symbol key access
@@ -59,16 +63,17 @@ class Credit_Underwriter():
                 raise TypeError('Only ticker strings and `risk` objects are currently supported.')
 
         self.risk_free_rate = risk_free_rate
-        self.Volatility = {}
+        self.equity_volatility = {}
+        self.asset_volatility = {}
         self.merton_price = {}
         self.implied_debt = {}
         self.credit_spread = {}
         self.default_prob = {}
-        self.severity = {}
         self.agg_mdls = {}
+        self.maturity = maturity
 
     @classmethod
-    def from_file(cls, source_folder: str, risk_free_rate: float = 0.03):
+    def from_file(cls, source_folder: str, risk_free_rate: float = 0.03, maturity=1):
         '''
         Alternative constructor to load all risk information from a given folder.
 
@@ -79,6 +84,9 @@ class Credit_Underwriter():
         '''
 
         # Loop through all pkl items in the given folder and load
+        if not source_folder.endswith("/"):
+            source_folder = f'{source_folder}/'
+
         risk_files = glob.glob(source_folder + "*.pkl")
 
         symb_list = []
@@ -86,8 +94,40 @@ class Credit_Underwriter():
             _risk = risk.from_file(risk_file)
             symb_list.append(_risk)
 
-        obj = cls(risks=symb_list, risk_free_rate=risk_free_rate, online_load=False)
+        obj = cls(risks=symb_list, risk_free_rate=risk_free_rate, online_load=False, maturity=maturity)
         return obj
+
+    @staticmethod
+    def black_scholes_call(S0: float,  # Underlying
+                           K: float,  # Strike
+                           r: float,  # Risk-free rate
+                           sigma: float,  # Volatility
+                           t: float,  # Time to maturity
+                           q: float,  # Dividends
+                           ) -> Tuple[float, float]:
+        '''
+        Static method to solve the Black-Scholes equation for a vanilla European call option.
+
+        Returns the value fo the call option, the risk-neutral probability that the call expies in the money and the delta of the call.
+        '''
+        d1 = (np.log(S0/K) + (r-q+0.5*sigma**2)*t)/(sigma*np.sqrt(t))
+        d2 = d1 - sigma*np.sqrt(t)
+
+        Phi1 = norm.cdf(d1)
+        Phi2 = norm.cdf(d2)
+
+        V = S0*np.exp(-q*t)*Phi1 - K*np.exp(-r*t)*Phi2
+        return [V, Phi2, Phi1]
+
+    def mean(self, symb: str):
+        '''Return the mean of the credit losses for each symbol.'''
+        mdl = self.agg_mdls[symb]
+        return mdl['exposure'] * mdl['p']
+
+    def var(self, symb: str):
+        '''Return the variance of the credit losses for each symbol.'''
+        mdl = self.agg_mdls[symb]
+        return mdl['exposure'] * mdl['p'] * (1-mdl['p'])
 
     def get_option_data(self):
         '''
@@ -150,7 +190,7 @@ class Credit_Underwriter():
                 'percentChange',
                 'lastTradeDate',
                 'lastPrice'
-            ])
+                ])
 
             # Use openInterest as a credibility measure - represents level of demand
             options = options.sort_values(by='openInterest', ascending=False)
@@ -205,14 +245,16 @@ class Credit_Underwriter():
 
         return duration_group, fig, ax
 
-    def set_volatility(self, Volatility: None | dict = None) -> None:
+    def set_volatility(self, eq_vol: None | dict = None) -> None:
         '''
-        Set up a list of volatilities to test possible implied share prices.
+        Set up a list of equity volatilities to test possible implied share prices. Then convert to asset volatility.
+
+        This is related by (equity_volatility*equity)**2 = (asset_volatility*asset*delta)**2
 
         Parameters
         ----------
-        Volatility: dict | None
-            Dictionary of volatility inputs for each symbol (key). E.g.
+        eq_vol: dict | None
+            Dictionary of annual volatility inputs for each symbol (key). E.g.
 
             {
                 'stk_symbol': [0.1, 0.05, 0.2],
@@ -222,66 +264,45 @@ class Credit_Underwriter():
             Leave as None for automatic suggestion (implied best estimate volatility, 25th percentile, 75th percentile)
         '''
         for symb, opt in self.options.items():
-            if Volatility is not None:
-                self.Volatility[symb] = Volatility[symb]
+            _risk = self.risks[symb]
+            total_shares = _risk.balance_sheet.loc['Share Issued'].iloc[0]  # Current count of shares
+
+            # We want to consider only current assets and liabs if "short-term"
+            if self.maturity > 1:
+                debt_face_value = _risk.balance_sheet.loc['Total Debt'].iloc[0] / total_shares  # Strike
+                total_assets = _risk.balance_sheet.loc['Total Assets'].iloc[0] / total_shares  # Current underlying
+            else:
+                debt_face_value = _risk.balance_sheet.loc['Current Debt'].iloc[0] / total_shares  # Strike
+                total_assets = _risk.balance_sheet.loc['Current Assets'].iloc[0] / total_shares  # Current underlying
+
+            if eq_vol is not None:
+                self.equity_volatility[symb] = eq_vol[symb]
             else:
                 # For automatic we will input best estimate (mean), 25th and 75th perentiles as our alternatives
                 low, high = np.quantile(opt['impliedVolatility'], [0.25, 0.75])
-                self.Volatility[symb] = [opt['impliedVolatility'].mean(), low, high]
+                self.equity_volatility[symb] = [opt['impliedVolatility'].mean(), low, high]
 
-    @staticmethod
-    def lognorm_params(mean: float, var: float) -> dict:
-        r'''
-        Method of moments parameter generation of the lognormal distribution.
+            # Obtain the implied asset volatility
+            sigma_E = self.equity_volatility[symb]
 
-        $$E(X) = e^{\mu + 0.5 \sigma^2}$$
-        $$V(X) = E(X)^2 (e^{\sigma^2} - 1)$$
+            # This needs to be solved numerically
+            def bs_solver(asset_vol, equity_vol):
+                _, Phi2, delta = self.black_scholes_call(
+                        S0=total_assets,
+                        K=debt_face_value,
+                        r=self.risk_free_rate,
+                        sigma=asset_vol,
+                        t=self.maturity,
+                        q=0
+                        )
 
-        Parameters
-        ----------
-        mean: float
-            Observed mean of lognormal distribution
-        var: float
-            Observed variance of lognormal distribution
+                equity = _risk.Price.iloc[0]
+                return (equity_vol*equity - asset_vol*total_assets*delta)**2
 
-        Returns
-        -------
-        dict:
+            sigma_A = [newton(bs_solver, sE, args=(1.0,)) for sE in sigma_E]
+            self.asset_volatility[symb] = sigma_A
 
-            In the following form:
-
-            {
-                'dist': scipy.stats.lognorm,
-                'properties': (s, location=0, scale)
-            }
-
-            See the Scipy manual for the layout of the lognorm distribution.
-        '''
-        sigma = np.sqrt(np.log(var/mean**2 + 1))
-        mu = np.log(mean - 0.5*sigma**2)
-
-        return {
-                'dist': lognorm,
-                'properties': (sigma, 0, np.exp(mu))
-                }
-
-    def _calc_aggregate_loss(self, symb: str) -> None:
-        '''
-        Private helper class to attain the aggregate loss object from the provided frequency-severity parametrizations.
-        '''
-        aggregate_model = poisson_fft_agg(
-                frequency=self.default_prob[symb],
-                severity_distribution=self.severity[symb]
-                )
-
-        aggregate_model.compile_aggregate_distribution()
-        self.agg_mdls[symb] = aggregate_model
-
-        # Throw errors if the model fit produces something that makes no sense
-        if np.abs(aggregate_model.diagnostics['Distribution_total'] - 1.) > 0.05:
-            raise RuntimeError("Unsuitable aggregate model produced. Discrete probabilities do not sum to 1")
-
-    def solve(self, maturity: float = 1.0) -> None:
+    def solve(self) -> None:
         '''
         Calculate the technical premium required for each ticker.
 
@@ -302,54 +323,44 @@ class Credit_Underwriter():
 
         - frequency is given by the default event and its probability as calculated.
         - severity is modeled as a lognormal distribution centered at face value of the debt and standard deviation the implied volatility.
-
-        Parameters
-        ----------
-        maturity: float = 1.0
-            The maturity to use for all underlying tickers in years. We default to 1 year.
         '''
 
         for symb in self.risks.keys():
             _risk = self.risks[symb]
-            # _opt = self.options[symb]
-
-            # current_share_price = _risk.info['currentPrice']
+            total_shares = _risk.balance_sheet.loc['Share Issued'].iloc[0]  # Current count of shares
 
             # We want to consider only current assets and liabs if "short-term"
-            if maturity > 1:
-                debt_face_value = _risk.balance_sheet.loc['Total Debt'].iloc[0]  # Strike
-                total_assets = _risk.balance_sheet.loc['Total Assets'].iloc[0]  # Current underlying
+            if self.maturity > 1:
+                debt_face_value = _risk.balance_sheet.loc['Total Debt'].iloc[0] / total_shares  # Strike
+                total_assets = _risk.balance_sheet.loc['Total Assets'].iloc[0] / total_shares  # Current underlying
             else:
-                debt_face_value = _risk.balance_sheet.loc['Current Debt'].iloc[0]  # Strike
-                total_assets = _risk.balance_sheet.loc['Current Assets'].iloc[0]  # Current underlying
+                debt_face_value = _risk.balance_sheet.loc['Current Debt'].iloc[0] / total_shares  # Strike
+                total_assets = _risk.balance_sheet.loc['Current Assets'].iloc[0] / total_shares  # Current underlying
 
-            total_shares = _risk.balance_sheet.loc['Share Issued'].iloc[0]  # Current count of shares
-            _vols = np.array(self.Volatility[symb])
+            _vols = np.array(self.asset_volatility[symb])
 
-            # Solve the Black-Scholes equation
-            d1 = (np.log(total_assets/debt_face_value) + (self.risk_free_rate + 0.5*_vols**2)*maturity)/(_vols*np.sqrt(maturity))
-            d2 = d1 - _vols*np.sqrt(maturity)
+            implied_equity, Phi2, _ = self.black_scholes_call(
+                    S0=total_assets,
+                    K=debt_face_value,
+                    r=self.risk_free_rate,
+                    sigma=_vols,
+                    t=self.maturity,
+                    q=0
+                    )
 
-            Phi1 = norm.cdf(d1)
-            Phi2 = norm.cdf(d2)
-
-            implied_equity = total_assets * Phi1 - debt_face_value * np.exp(-self.risk_free_rate*maturity) * Phi2
-
-            self.merton_price[symb] = implied_equity / total_shares
+            self.merton_price[symb] = implied_equity
 
             # Calculate the credit spread
             self.implied_debt[symb] = total_assets - implied_equity
-            y = (1/maturity)*np.log(debt_face_value/self.implied_debt[symb])  # The required yield
+            y = (1/self.maturity)*np.log(debt_face_value/self.implied_debt[symb])  # The required yield
             self.credit_spread[symb] = y - self.risk_free_rate
-            self.default_prob[symb] = 1 - Phi2  # Risk-neutral probability of default at maturity
-            # Encapsulate severity model
-            self.severity[symb] = self.lognorm_params(
-                    mean=self.implied_debt[symb],
-                    var=self.Volatility[symb]
-                    )
+            self.default_prob[symb] = (1 - Phi2)/self.maturity  # 1-year risk-neutral probability of default at maturity
 
-            # Generate the aggregate loss model
-            self._calc_aggregate_loss(symb)
+            # Encapsulate losses parameters
+            self.agg_mdls[symb] = {
+                    'exposure': total_assets - debt_face_value,
+                    'p': self.default_prob[symb][0]
+                    }
 
     def present(self, index: int = 0) -> pd.DataFrame:
         '''
@@ -367,36 +378,33 @@ class Credit_Underwriter():
         '''
         prices = []
         share_prices = []
-        vols = []
+        eq_vols = []
+        a_vols = []
         spreads = []
         prob_defs = []
         symbs = self.risks.keys()
         risk_prems = []
-        upper95 = []
-        upper99 = []
 
         for s in symbs:
             prices.append(self.merton_price[s][index])
             share_prices.append(self.risks[s].Price.iloc[0])
-            vols.append(self.Volatility[s][index])
+            eq_vols.append(self.equity_volatility[s][index])
+            a_vols.append(self.asset_volatility[s][index])
             spreads.append(self.credit_spread[s][index])
             prob_defs.append(self.default_prob[s][index])
 
             # Attain risk premium information (loss cost estimate)
-            risk_prems.append(self.agg_mdls[s].mean(theoretical="Partial"))
-            upper95.append(self.agg_mdls[s].ppf(q=0.95))
-            upper99.append(self.agg_mdls[s].ppf(q=0.99))
+            risk_prems.append(self.mean(s))
 
         return pd.DataFrame({
             'Ticker': symbs,
             'Merton_Price': prices,
             'Market_Price': share_prices,
-            'Implied_Volatility': vols,
+            'Implied_Equity_Volatility': eq_vols,
+            'Implied_Asset_Volatility': a_vols,
             'Credit_Spread': spreads,
             'Default_Probability': prob_defs,
             'Risk_premium': risk_prems,
-            '95%': upper95,
-            '99%': upper99
             })
 
     def save_all(self, folder_path: str = "./") -> None:
@@ -408,6 +416,7 @@ class Credit_Underwriter():
         folder_path: str = "./"
             Specify current directory to store all risk pickles. Defaults to current working directory.
         '''
+        p = f'{folder_path}' if folder_path.endswith("/") else f'{folder_path}/'
 
         for _, _risk in self.risks.items():
-            _risk.export(path=f'{folder_path}{_risk.symb}.pkl')
+            _risk.export(path=f'{p}{_risk.symb}.pkl')
