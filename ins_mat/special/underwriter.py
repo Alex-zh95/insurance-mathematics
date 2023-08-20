@@ -362,7 +362,7 @@ class Credit_Underwriter():
                     'p': self.default_prob[symb][0]
                     }
 
-    def present(self, index: int = 0) -> pd.DataFrame:
+    def present_analysis(self, index: int = 0) -> pd.DataFrame:
         '''
         Present for each of the risks on board the Merton implied price, implied volatility, credit spread and risk-neutral probability of default.
 
@@ -404,8 +404,23 @@ class Credit_Underwriter():
             'Implied_Asset_Volatility': a_vols,
             'Credit_Spread': spreads,
             'Default_Probability': prob_defs,
-            'Risk_premium': risk_prems,
+            'Risk_premium_per_share': risk_prems,
             })
+
+        def price_single(symb: str, limit: float = 10e6) -> float:
+            '''
+            Price a credit contract on the symbol subjet to limit of indeminity.
+
+            Parameters
+            ----------
+            symb: str
+                Symbol for ticker
+            limit: float = 10,000,000
+                Limit of indemnity for cover.
+            '''
+            rate = self.mean(symb)
+            n_shares = limit / self.risks[symb].Price.iloc[0]
+            return n_shares * rate
 
     def save_all(self, folder_path: str = "./") -> None:
         '''
