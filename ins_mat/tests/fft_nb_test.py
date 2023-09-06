@@ -59,7 +59,7 @@ def limited_nb_fft_test():
     print('\n')
 
     # Create instance
-    agg = nb_fft_agg(
+    lim_agg = nb_fft_agg(
             n=f_np[0],
             p=f_np[1],
             severity_distribution=x_gpd
@@ -69,17 +69,17 @@ def limited_nb_fft_test():
     xs, lim = 1.0, 5.0
     print(f'Excess = {xs:,.3f}')
     print(f'Limit = {lim:,.3f}')
-    agg.setup_layer(excess=xs, limit=lim)
+    lim_agg.setup_layer(excess=xs, limit=lim)
 
     # Compile the aggregate distribution
-    agg.compile_aggregate_distribution()
+    lim_agg.compile_aggregate_distribution()
 
     # Inspect the validation by calling diagnostics
     print('Diagnostics:')
-    print(agg.diagnostics)
-    print(f'PPF@90% = {agg.ppf(0.9)}')
+    print(lim_agg.diagnostics)
+    print(f'PPF@90% = {lim_agg.ppf(0.9)}')
     print('\n')
-    return agg
+    return lim_agg
 
 
 def stop_loss_nb_test():
