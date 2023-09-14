@@ -1,3 +1,17 @@
+'''
+Note: for runtime call
+
+
+for _risk in self.list_risks:
+    # Step 1: attain implied volatilities
+    self.calculate_implied_volatility(_risk)
+
+    # Step 2: Require sharpe ratios for all risks (no adjustments/overrides possible)
+    self.calculate_sharpe_ratio(_risk)
+
+    # Step 3: Generate rates (using actuarial probabilities only)
+    self.generate_rate(_risk, use_rn=False)
+'''
 import numpy as np
 from scipy.stats import lognorm, norm
 from scipy.optimize import newton
@@ -48,17 +62,26 @@ def get_returns(price_vect: np.ndarray | list[float]) -> Tuple[np.ndarray, dict]
             properties: lognormal parameters
         }
     '''
-    returns = price_vect[1:] / price_vect[:-1]
+    returns = price_vect[1:] / price_vect[:-1]  # Daily returns
+    daily_params = lognorm.fit(returns, floc=0)
+
+    # Convert from daily to annual model
+    new_mean = (lognorm.mean(*daily_params) - 1)*365 + 1
+    new_var = lognorm.var(*daily_params)*365**2
+
+    # Convert back to scipy.stats
+    new_sigma = np.sqrt(np.log(new_var/new_mean**2 + 1))
+    new_mu = np.log(new_mean) - 0.5*new_sigma**2
 
     mdl = {
             'dist': lognorm,
-            'properties': lognorm.fit(np.log(returns), floc=0)
+            'properties': (new_sigma, 0, np.exp(new_mu))
             }
 
     return returns, mdl
 
 
-def wang_transform(P: np.ndarray | float, sharpe_ratio: float) -> np.ndarray | float:
+def inv_wang_transform(P: np.ndarray | float, sharpe_ratio: float) -> np.ndarray | float:
     '''
     The Wang transform converts a given probability into a risk-adjusted probability.
 
@@ -67,6 +90,8 @@ def wang_transform(P: np.ndarray | float, sharpe_ratio: float) -> np.ndarray | f
     where N is the standard normal cumulative distribution.
 
     This function can effectively be used as a change-of-measure transform (i.e. stand-in for Radon-Nikodym derivative).
+
+    We calculate in this function the inverse Wang transform.
 
     Parameters
     ----------
@@ -80,7 +105,7 @@ def wang_transform(P: np.ndarray | float, sharpe_ratio: float) -> np.ndarray | f
     G: np.ndarray | float
         Risk-adjusted probabilities
     '''
-    return norm.cdf(norm.ppf(P) + sharpe_ratio)
+    return norm.cdf(norm.ppf(P) - sharpe_ratio)
 
 
 class credit_module():
@@ -101,19 +126,19 @@ class credit_module():
         self.implied_debts = {}
         self.rn_default_probability = {}
         self.ac_default_probability = {}
-        self.rates = {}
         self.sharpe_ratios = {}
         self.returns_mdls = {}
         self.premiums = {}
+        self.credit_spread = {}
 
-    def calculate_implied_volatility(self, rsk) -> None:
+    def calculate_implied_volatility(self, rsk, override: float | None = None) -> None:
         '''
         Use the Black-Scholes equation to obtain
 
-        - implied equity volatilities for each of the risks in the list,
-        - implied asset volatilities for each of the risks in the list by solving:
+        - implied equity volatilities for chosen risk (can be overriden if external data available),
+        - implied asset volatilities for chosen risk in the list by solving:
 
-        `(equity_volatility * equity_volatility)**2 = (asset_volatilities*asset*delta)**2`
+        `(equity_volatility * equity)**2 = (asset_volatilities*asset*delta)**2`
 
         Parameters
         ----------
@@ -124,7 +149,7 @@ class credit_module():
         # Helper function wrappers around the Black-Sholes solver
         def bse(v: float, _rsk) -> float:
             out, _, _ = rn.black_scholes_price(
-                    S0=_rsk.market_history[-1],
+                    S0=_rsk.market_history[0],
                     K=_rsk.option_strike,
                     r=self.r,
                     sigma=v,
@@ -135,14 +160,16 @@ class credit_module():
             return out
 
         def bse_equity_to_asset(
-                equity_volatility: float,
                 asset_volatility: float,
-                current_equity_price: float,
+                equity_volatility: float,
                 _rsk,
                 ) -> float:
+            current_assets = _rsk.assets / _rsk.shares_issued
+            current_liabilities = _rsk.liabilities / _rsk.shares_issued
+
             out, Phi2, delta = rn.black_scholes_price(
-                    S0=_rsk.assets / _rsk.shares_issued,
-                    K=_rsk.liabilities / _rsk.shares_issued,
+                    S0=current_assets,
+                    K=current_liabilities,
                     r=self.r,
                     sigma=asset_volatility,
                     t=self.maturity,
@@ -150,18 +177,20 @@ class credit_module():
                     name='call'
                     )
 
-            return (equity_volatility * current_equity_price - asset_volatility * _rsk.assets * delta)**2
-
-        # Create initial guess by looking at returns
-        _, returns_model = get_returns(rsk.market_history)
-        v_init = lognorm.std(*returns_model['properties'])
+            current_equity_price = _rsk.market_history[0]
+            return ((equity_volatility * current_equity_price) - (asset_volatility * current_assets * delta))
 
         # Solve iteratively for equity volatility
-        self.equity_volatilities[rsk.name] = newton(lambda v: bse(v) - rsk.option_price, v_init, args=(rsk,))
+        if override is None:
+            self.equity_volatilities[rsk.name] = newton(lambda v: bse(v, rsk) - rsk.option_price, 1.0)
+        else:
+            self.equity_volatilities[rsk.name] = override
 
-        self.asset_volatilities[rsk.name] = newton(bse_equity_to_asset, self.equity_volatilities[rsk.name], args=(1.0, rsk.market_history[-1], rsk))
+        # Convert from equity volatility to asset volatility (unobservable)
+        self.asset_volatilities[rsk.name] = newton(bse_equity_to_asset, 1.0, args=(self.equity_volatilities[rsk.name], rsk,))
 
-        # Also save the returns model
+        # Set up returns model for later use
+        _, returns_model = get_returns(rsk.market_history)
         self.returns_mdls[rsk.name] = returns_model
 
     def calculate_sharpe_ratio(self, rsk, ovr_returns: float | None = None) -> None:
@@ -186,11 +215,12 @@ class credit_module():
             adj_returns = ovr_returns
         else:
             cur_risk_return_mdl = self.returns_mdls[rsk.name]
-            adj_returns = lognorm.mean(*cur_risk_return_mdl['properties'])
+            adj_returns = lognorm.mean(*cur_risk_return_mdl['properties']) - 1
 
-        self.sharpe_ratios[rsk.name] = (ovr_returns - self.r) / adj_returns
+        risk_free_rate = self.r
+        self.sharpe_ratios[rsk.name] = (adj_returns - risk_free_rate) / self.equity_volatilities[rsk.name]
 
-    def generate_rate(self, rsk, use_rn: bool = True) -> None:
+    def generate_rate(self, rsk, use_rn: bool = False) -> None:
         '''
         Calculate the technical premium required for each ticker.
 
@@ -198,7 +228,7 @@ class credit_module():
         ----------
         rsk: risk
             Selected risk in portfolio to solve for.
-        rn: bool = True
+        rn: bool = False
             Whether to use the risk neutral probabilities or not.
 
         Notes
@@ -223,8 +253,9 @@ class credit_module():
         '''
         debt_face_value = rsk.liabilities / rsk.shares_issued
 
-        implied_equity, Phi2, _ = use_rn.black_scholes_price(
-                S0=rsk.assets / rsk.shares_issued,
+        # Implied equity on a per share basis
+        implied_equity, Phi2, _ = rn.black_scholes_price(
+                S0=rsk.assets/rsk.shares_issued,
                 K=debt_face_value,
                 r=self.r,
                 sigma=self.asset_volatilities[rsk.name],
@@ -232,34 +263,21 @@ class credit_module():
                 q=0
                 )
 
-        self.rn_default_probability[rsk.name] = Phi2,
+        self.rn_default_probability[rsk.name] = (1 - Phi2)/self.maturity
 
         y = (1/self.maturity) * np.log(debt_face_value/implied_equity)
         self.credit_spread[rsk.name] = y - self.r
 
-        # Calculate a rate for the contract
+        # Calculate premiums based on the provided limits
         if use_rn:
-            self.rates[rsk.name] = rsk.market_history[-1] * Phi2
+            self.premiums[rsk.name] = self.rn_default_probability[rsk.name] * self.limit
+            self.ac_default_probability[rsk.name] = 0
         else:
             # Use the Wang transform to convert from risk-neutral probability to actuarial probability
             # One method is to utilize sharpe_ratio to make converison.
-            act_phi2 = wang_transform(P=Phi2, sharpe_ratio=self.sharpe_ratios[rsk.name])
-            self.ac_default_probability[risk.name] = act_phi2
-            self.rates[rsk.name] = rsk.market_history[-1] * act_phi2
-
-        # Calculate premiums based on the provided limits
-        self.premiums[rsk.name] = self.rates[rsk.name] * self.limit
-
-    def pipeline_solve(self) -> None:
-        '''
-        Pipeline all the actions in this class for all risks in portfolio.
-        '''
-        for risks in self.list_risks:
-            # Step 1: attain implied volatilities
-            self.calculate_implied_volatility(risk)
-
-            # Step 2: Require sharpe ratios for all risks (no adjustments/overrides possible)
-            self.calculate_implied_volatility(risk)
-
-            # Step 3: Generate rates (using actuarial probabilities only)
-            self.generate_rate(risk, use_rn=True)
+            prob_act_default = inv_wang_transform(
+                    P=self.rn_default_probability[rsk.name],
+                    sharpe_ratio=self.sharpe_ratios[rsk.name]
+                    )
+            self.ac_default_probability[rsk.name] = prob_act_default
+            self.premiums[rsk.name] = self.ac_default_probability[rsk.name] * self.limit
