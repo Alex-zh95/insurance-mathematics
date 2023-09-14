@@ -5,7 +5,7 @@ Running various tests
 from ins_mat.tests import fft_poisson_test
 from ins_mat.tests import fft_nb_test
 from ins_mat.tests import mc_test
-from ins_mat.tests import credit_underwriting
+from ins_mat.tests import credit_test
 
 # print('Running FFT Poisson tests...\n')
 # agg1 = fft_poisson_test.gross_poisson_fft_test()
@@ -21,5 +21,5 @@ from ins_mat.tests import credit_underwriting
 # print('Running MC-Sim test')
 # agg6 = mc_test.agg_lim_test()
 #
-print('Running credit underwriter test')
-prems = credit_underwriting.test(online_refresh=False)
+print('Running credit rating test')
+credit_test.main_test()

@@ -16,7 +16,7 @@ class risk:
     ticker: str
     sector: str
     shares_issued: int
-    market_history: list[float]
+    market_history: list[float] | np.ndarray
     option_price: float
     option_strike: float
     option_type: str
@@ -27,7 +27,7 @@ class risk:
     dividends: float = 0
 
 
-def get_returns(price_vect: np.ndarray) -> Tuple[np.ndarray, dict]:
+def get_returns(price_vect: np.ndarray | list[float]) -> Tuple[np.ndarray, dict]:
     '''
     Calculate the YoY percentage change on stock value also empirical estimations of lognormal model.
 
@@ -83,7 +83,7 @@ def wang_transform(P: np.ndarray | float, sharpe_ratio: float) -> np.ndarray | f
     return norm.cdf(norm.ppf(P) + sharpe_ratio)
 
 
-class credit_risk():
+class credit_module():
     def __init__(self,
                  risks: list[risk],
                  limit: float = 10e6,
@@ -100,9 +100,11 @@ class credit_risk():
         self.equity_volatilities = {}
         self.implied_debts = {}
         self.rn_default_probability = {}
+        self.ac_default_probability = {}
         self.rates = {}
         self.sharpe_ratios = {}
         self.returns_mdls = {}
+        self.premiums = {}
 
     def calculate_implied_volatility(self, rsk) -> None:
         '''
@@ -151,7 +153,7 @@ class credit_risk():
             return (equity_volatility * current_equity_price - asset_volatility * _rsk.assets * delta)**2
 
         # Create initial guess by looking at returns
-        _, returns_model = get_returns(rsk.market_history[-1])
+        _, returns_model = get_returns(rsk.market_history)
         v_init = lognorm.std(*returns_model['properties'])
 
         # Solve iteratively for equity volatility
@@ -188,7 +190,7 @@ class credit_risk():
 
         self.sharpe_ratios[rsk.name] = (ovr_returns - self.r) / adj_returns
 
-    def generate_rate(self, rsk, rn: bool = True) -> None:
+    def generate_rate(self, rsk, use_rn: bool = True) -> None:
         '''
         Calculate the technical premium required for each ticker.
 
@@ -221,7 +223,7 @@ class credit_risk():
         '''
         debt_face_value = rsk.liabilities / rsk.shares_issued
 
-        implied_equity, Phi2, _ = rn.black_scholes_price(
+        implied_equity, Phi2, _ = use_rn.black_scholes_price(
                 S0=rsk.assets / rsk.shares_issued,
                 K=debt_face_value,
                 r=self.r,
@@ -236,12 +238,13 @@ class credit_risk():
         self.credit_spread[rsk.name] = y - self.r
 
         # Calculate a rate for the contract
-        if rn:
+        if use_rn:
             self.rates[rsk.name] = rsk.market_history[-1] * Phi2
         else:
             # Use the Wang transform to convert from risk-neutral probability to actuarial probability
             # One method is to utilize sharpe_ratio to make converison.
             act_phi2 = wang_transform(P=Phi2, sharpe_ratio=self.sharpe_ratios[rsk.name])
+            self.ac_default_probability[risk.name] = act_phi2
             self.rates[rsk.name] = rsk.market_history[-1] * act_phi2
 
         # Calculate premiums based on the provided limits
@@ -259,4 +262,4 @@ class credit_risk():
             self.calculate_implied_volatility(risk)
 
             # Step 3: Generate rates (using actuarial probabilities only)
-            self.generate_rate(risk, rn=True)
+            self.generate_rate(risk, use_rn=True)
