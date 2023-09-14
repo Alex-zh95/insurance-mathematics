@@ -61,7 +61,7 @@ def yf_risk_load(yf_ticker_name: str):
     options[['bid', 'ask', 'strike']] = options[['bid', 'ask', 'strike']].apply(pd.to_numeric)
     options['price'] = options[['bid', 'ask']].mean(axis=1)
 
-    # Attain the option with the highest trade volume - measure of credibility
+    # Attain the option details with the highest trade volume - measure of credibility
     options = options.sort_values(by='openInterest', ascending=False)
 
     # Obtain the option parameters
@@ -70,6 +70,7 @@ def yf_risk_load(yf_ticker_name: str):
     opt_maturity = options['duration'].iloc[0]
     opt_strike = options['strike'].iloc[0]
 
+    # Obtain mean implied volatility
     opt_implied = options['impliedVolatility'].iloc[0]
 
     yf_risk = risk(name=yf_ticker_name,
@@ -90,7 +91,7 @@ def yf_risk_load(yf_ticker_name: str):
     return (yf_risk, opt_implied)
 
 
-def credit_risk_generation(yf_risks, limit=10e6, debt_maturity=1, risk_free_rate=0.03, impl_vol_overriders=None):
+def credit_risk_generation(yf_risks, limit=10e6, debt_maturity=1., risk_free_rate=0.03, impl_vol_overriders=None):
     '''
     Run the credit risk pipeline from the chosen list of yf_risks.
     '''
@@ -108,7 +109,7 @@ def credit_risk_generation(yf_risks, limit=10e6, debt_maturity=1, risk_free_rate
         print('Attaining sharpe ratio')
         uw.calculate_sharpe_ratio(rsk)
 
-        print('Generating rates')
+        print('Generating rates\n')
         uw.generate_rate(rsk, use_rn=False)
 
     return uw
@@ -124,7 +125,7 @@ def main_test():
         portfolio_lst.append(rsk)
         list_implied_vol.append(implV)
 
-    uw = credit_risk_generation(portfolio_lst, risk_free_rate=0.03, impl_vol_overriders=list_implied_vol)
+    uw = credit_risk_generation(portfolio_lst, debt_maturity=5.0, risk_free_rate=0.03, impl_vol_overriders=list_implied_vol)
 
     # Print some results:
     ac_probs = [uw.ac_default_probability[s] for s in names]
@@ -144,6 +145,7 @@ def main_test():
         'Premiums': prems
         })
 
+    print("Result table:\n")
     print(results)
 
 
