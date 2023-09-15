@@ -115,7 +115,11 @@ class credit_module():
                  debt_maturity: float = 1,
                  r: float = 0.03
                  ):
-        self.list_risks = risks
+        # Generate dictionary of the risks
+        self.dict_risks = {}
+        for rsk in risks:
+            self.dict_risks[rsk.name] = rsk
+
         self.r = r
         self.maturity = debt_maturity
         self.limit = limit
@@ -187,7 +191,11 @@ class credit_module():
             self.equity_volatilities[rsk.name] = override
 
         # Convert from equity volatility to asset volatility (unobservable)
-        self.asset_volatilities[rsk.name] = newton(bse_equity_to_asset, 1.0, args=(self.equity_volatilities[rsk.name], rsk,))
+        try:
+            self.asset_volatilities[rsk.name] = newton(bse_equity_to_asset, 1.0, args=(self.equity_volatilities[rsk.name], rsk,))
+        except RuntimeError:
+            self.asset_volatilities[rsk.name] = self.equity_volatilities[rsk.name]
+            print('Warning: Failed to converget for asset volatiltiies, using equity volatility as proxy.')
 
         # Set up returns model for later use
         _, returns_model = get_returns(rsk.market_history)

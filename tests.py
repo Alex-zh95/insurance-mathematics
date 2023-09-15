@@ -22,4 +22,7 @@ from ins_mat.tests import credit_test
 # agg6 = mc_test.agg_lim_test()
 #
 print('Running credit rating test')
-credit_test.main_test()
+in_str = input('Ticker strings (separate by commas): ')
+in_lim = input('Set limit: ')
+names = in_str.split(', ')
+credit_test.main_test(names, float(in_lim))

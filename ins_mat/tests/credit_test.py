@@ -122,8 +122,7 @@ def credit_risk_generation(yf_risks, limit=100e6, debt_maturity=1., risk_free_ra
     return uw
 
 
-def main_test():
-    names = ['BAC', 'TSLA', 'MSFT', 'ORCL', 'AAPL', 'PG', 'KO']
+def main_test(names: list[str], limit: float = 100e6):
     portfolio_lst = []
     list_implied_vol = []
 
@@ -132,7 +131,7 @@ def main_test():
         portfolio_lst.append(rsk)
         list_implied_vol.append(implV)
 
-    uw = credit_risk_generation(portfolio_lst, debt_maturity=1.0, risk_free_rate=0.03, impl_vol_overriders=list_implied_vol)
+    uw = credit_risk_generation(portfolio_lst, limit=limit, debt_maturity=1.0, risk_free_rate=0.03, impl_vol_overriders=list_implied_vol)
 
     # Print some results:
     ac_probs = [uw.ac_default_probability[s] for s in names]
@@ -141,6 +140,7 @@ def main_test():
     a_vols = [uw.asset_volatilities[s] for s in names]
     sharpe_ratios = [uw.sharpe_ratios[s] for s in names]
     prems = [uw.premiums[s] for s in names]
+    mkt_prices = [uw.dict_risks[s].market_history[0] for s in names]
 
     results = pd.DataFrame({
         'Risk': names,
@@ -149,7 +149,8 @@ def main_test():
         'Default_probs_rn': rn_probs,
         'Default_probs_act': ac_probs,
         'Sharpe': sharpe_ratios,
-        'Premiums': prems
+        'Premiums': prems,
+        'Market_price': mkt_prices,
         })
 
     print("Result table:\n")
@@ -157,4 +158,6 @@ def main_test():
 
 
 if __name__ == "__main__":
-    main_test()
+    in_str = input('Ticker strings (separate by commas):')
+    names = in_str.split(', ')
+    main_test(names)
