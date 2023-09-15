@@ -64,14 +64,16 @@ def get_returns(price_vect: np.ndarray | list[float]) -> Tuple[np.ndarray, dict]
     '''
     returns = price_vect[1:] / price_vect[:-1]  # Daily returns
     daily_params = lognorm.fit(returns, floc=0)
+    daily_j = lognorm.mean(*daily_params) - 1
+    daily_s = lognorm.std(*daily_params)
 
     # Convert from daily to annual model
-    new_mean = (lognorm.mean(*daily_params) - 1)*365 + 1
-    new_var = lognorm.var(*daily_params)*365**2
+    annual_return = (1 + daily_j)**365
+    var_return = (1 + 2*daily_j + daily_j**2 + daily_s**2)**365 - (1 + daily_j)**(2*365)
 
-    # Convert back to scipy.stats
-    new_sigma = np.sqrt(np.log(new_var/new_mean**2 + 1))
-    new_mu = np.log(new_mean) - 0.5*new_sigma**2
+    # Parameterize new lognormal based on the above new moments
+    new_sigma = np.sqrt(np.log(var_return/annual_return**2 + 1))
+    new_mu = np.log(annual_return) - 0.5*new_sigma**2
 
     mdl = {
             'dist': lognorm,
@@ -217,6 +219,8 @@ class credit_module():
         The sharpe ratio is calculated as:
 
         sr = (risk return - risk-free rate) / equity volatility
+
+        It is also termed "market price of risk"
         '''
 
         if ovr_returns is not None:
@@ -252,7 +256,7 @@ class credit_module():
         We assume that corporate entity issues both equity and debt. At maturity, assume that company is "wound-up",
         in which case shareholders recive a payoff of $E(T) = max(F(T)-L, 0)$ because debt is senior to equity.
 
-        Under this framework, this is equivalent to treating shareholders as having a European vanilla call option on the assets of the comapny with maturity $T$ and strike price equal to value of debt.
+        Under this framework, this is equivalent to treating shareholders as having a European vanilla call option on the assets of the company with maturity $T$ and strike price equal to value of debt.
 
         Losses are modeled here via frequency-severity, where
 
