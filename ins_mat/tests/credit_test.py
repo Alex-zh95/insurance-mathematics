@@ -24,13 +24,20 @@ def yf_risk_load(yf_ticker_name: str):
     dload = ticker.history(start=start_date, end=end_date)
 
     # Balance sheet attributes for the risk
-    try:
-        assets = ticker.balance_sheet.loc['Current Assets'].iloc[0]
-        liabilities = ticker.balance_sheet.loc['Current Debt'].iloc[0]
-    except KeyError:
-        assets = ticker.balance_sheet.loc['Total Assets'].iloc[0]
-        liabilities = ticker.balance_sheet.loc['Total Debt'].iloc[0]
+    assets = ticker.balance_sheet.loc['Total Assets'].iloc[0]
+    long_liabs = ticker.balance_sheet.loc['Total Debt'].iloc[0]
     shares_issued = ticker.balance_sheet.loc['Share Issued'].iloc[0]
+
+    # Typical trigger is 100% of short + 50% of long-term liabs payable
+    try:
+        short_liabs = ticker.balance_sheet.loc['Current Debt'].iloc[0]
+        alpha = 0.5
+    except KeyError:
+        # When short term liabs not available, we take 75% of long-term instead
+        short_liabs = 0
+        alpha = 0.75
+
+    liabilities = short_liabs + alpha*long_liabs  # Typical trigger (KMV)
 
     # Option prices (optimize for lowest volatility)
     options = pd.DataFrame()
@@ -39,11 +46,11 @@ def yf_risk_load(yf_ticker_name: str):
     expiry_dates = ticker.options
 
     # Filter for expiry dates not immediate, so we look at least 1 month from now
-    exp_date_filter = end_date + dt.timedelta(weeks=52/12)
+    # exp_date_filter = end_date + dt.timedelta(weeks=52/12)
 
     for T in expiry_dates:
-        if dt.datetime.strptime(T, '%Y-%m-%d') < exp_date_filter:
-            continue
+        # if dt.datetime.strptime(T, '%Y-%m-%d') < exp_date_filter:
+            # continue
 
         cur_T_options = ticker.option_chain(T)
         cur_T_options = pd.concat([cur_T_options.calls, cur_T_options.puts], ignore_index=True)
@@ -91,7 +98,7 @@ def yf_risk_load(yf_ticker_name: str):
     return (yf_risk, opt_implied)
 
 
-def credit_risk_generation(yf_risks, limit=10e6, debt_maturity=1., risk_free_rate=0.03, impl_vol_overriders=None):
+def credit_risk_generation(yf_risks, limit=100e6, debt_maturity=1., risk_free_rate=0.03, impl_vol_overriders=None):
     '''
     Run the credit risk pipeline from the chosen list of yf_risks.
     '''
@@ -116,7 +123,7 @@ def credit_risk_generation(yf_risks, limit=10e6, debt_maturity=1., risk_free_rat
 
 
 def main_test():
-    names = ['BAC', 'IBM', 'MSFT', 'ORCL', 'AAPL', 'PG', 'KO']
+    names = ['BAC', 'TSLA', 'MSFT', 'ORCL', 'AAPL', 'PG', 'KO']
     portfolio_lst = []
     list_implied_vol = []
 
@@ -125,7 +132,7 @@ def main_test():
         portfolio_lst.append(rsk)
         list_implied_vol.append(implV)
 
-    uw = credit_risk_generation(portfolio_lst, debt_maturity=5.0, risk_free_rate=0.03, impl_vol_overriders=list_implied_vol)
+    uw = credit_risk_generation(portfolio_lst, debt_maturity=1.0, risk_free_rate=0.03, impl_vol_overriders=list_implied_vol)
 
     # Print some results:
     ac_probs = [uw.ac_default_probability[s] for s in names]

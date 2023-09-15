@@ -111,7 +111,7 @@ def inv_wang_transform(P: np.ndarray | float, sharpe_ratio: float) -> np.ndarray
 class credit_module():
     def __init__(self,
                  risks: list[risk],
-                 limit: float = 10e6,
+                 limit: float = 100e6,
                  debt_maturity: float = 1,
                  r: float = 0.03
                  ):
@@ -268,9 +268,11 @@ class credit_module():
         y = (1/self.maturity) * np.log(debt_face_value/implied_equity)
         self.credit_spread[rsk.name] = y - self.r
 
-        # Calculate premiums based on the provided limits
+        # Calculate the loss given default (lgd)
+        lgd = np.min([self.limit, rsk.liabilities])
+
         if use_rn:
-            self.premiums[rsk.name] = self.rn_default_probability[rsk.name] * self.limit
+            self.premiums[rsk.name] = self.rn_default_probability[rsk.name] * lgd
             self.ac_default_probability[rsk.name] = 0
         else:
             # Use the Wang transform to convert from risk-neutral probability to actuarial probability
@@ -280,4 +282,4 @@ class credit_module():
                     sharpe_ratio=self.sharpe_ratios[rsk.name]
                     )
             self.ac_default_probability[rsk.name] = prob_act_default
-            self.premiums[rsk.name] = self.ac_default_probability[rsk.name] * self.limit
+            self.premiums[rsk.name] = self.ac_default_probability[rsk.name] * lgd
