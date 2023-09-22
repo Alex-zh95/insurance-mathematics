@@ -1,7 +1,6 @@
 '''
 Note: for runtime call
 
-
 for _risk in self.list_risks:
     # Step 1: attain implied volatilities
     self.calculate_implied_volatility(_risk)
@@ -83,7 +82,7 @@ def get_returns(price_vect: np.ndarray | list[float]) -> Tuple[np.ndarray, dict]
     return returns, mdl
 
 
-def inv_wang_transform(P: np.ndarray | float, sharpe_ratio: float) -> np.ndarray | float:
+def inverse_wang_transform(P: np.ndarray | float, sharpe_ratio: float) -> np.ndarray | float:
     '''
     The Wang transform converts a given probability into a risk-adjusted probability.
 
@@ -289,7 +288,7 @@ class credit_module():
         else:
             # Use the Wang transform to convert from risk-neutral probability to actuarial probability
             # One method is to utilize sharpe_ratio to make converison.
-            prob_act_default = inv_wang_transform(
+            prob_act_default = inverse_wang_transform(
                     P=self.rn_default_probability[rsk.name],
                     sharpe_ratio=self.sharpe_ratios[rsk.name]
                     )

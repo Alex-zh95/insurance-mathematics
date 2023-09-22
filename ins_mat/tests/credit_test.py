@@ -26,7 +26,7 @@ def yf_risk_load(yf_ticker_name: str):
 
     # Balance sheet attributes for the risk
     assets = ticker.balance_sheet.loc['Total Assets'].iloc[0]
-    long_liabs = ticker.balance_sheet.loc['Total Debt'].iloc[0]
+    all_liabs = ticker.balance_sheet.loc['Total Debt'].iloc[0]
     shares_issued = ticker.balance_sheet.loc['Share Issued'].iloc[0]
 
     # Typical trigger is 100% of short + 50% of long-term liabs payable
@@ -38,6 +38,7 @@ def yf_risk_load(yf_ticker_name: str):
         short_liabs = 0
         alpha = 0.75
 
+    long_liabs = all_liabs - short_liabs
     liabilities = short_liabs + alpha*long_liabs  # Typical trigger (KMV)
 
     # Option prices (optimize for lowest volatility)
@@ -46,13 +47,7 @@ def yf_risk_load(yf_ticker_name: str):
     # Get expiry dates
     expiry_dates = ticker.options
 
-    # Filter for expiry dates not immediate, so we look at least 1 month from now
-    # exp_date_filter = end_date + dt.timedelta(weeks=52/12)
-
     for T in expiry_dates:
-        # if dt.datetime.strptime(T, '%Y-%m-%d') < exp_date_filter:
-            # continue
-
         cur_T_options = ticker.option_chain(T)
         cur_T_options = pd.concat([cur_T_options.calls, cur_T_options.puts], ignore_index=True)
         cur_T_options['expiry'] = T
@@ -159,6 +154,6 @@ def main_test(names: list[str], limit: float = 100e6):
 
 
 if __name__ == "__main__":
-    in_str = input('Ticker strings (separate by commas):')
+    in_str = input('Ticker strings (separate by commas): ')
     names = in_str.split(', ')
     main_test(names)
