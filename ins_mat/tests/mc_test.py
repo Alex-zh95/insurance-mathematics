@@ -1,3 +1,6 @@
+from context import access_root_dir
+access_root_dir(1)
+
 from ins_mat.agg_dist.agg_sim import agg_sim
 from ins_mat.agg_dist.fft_nb import nb_fft_agg
 from ins_mat.agg_dist.fft_poisson import poisson_fft_agg

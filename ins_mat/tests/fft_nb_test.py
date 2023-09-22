@@ -1,4 +1,5 @@
-# import numpy as np
+from context import access_root_dir
+access_root_dir(1)
 
 from ins_mat.agg_dist.fft_nb import nb_fft_agg
 from scipy.stats import genpareto
@@ -6,15 +7,14 @@ import pandas as pd
 import copy
 
 
-def gross_nb_fft_test():
+def gross_nb_fft_test(f_np=[1.2, 0.5], gpd_c=0.378, gpd_l=0, gpd_s=8.123):
     print('Testing gross insurance structure with following:')
-    f_np = [1.2, 0.5]
     x_gpd = {
             'dist': genpareto,
             'properties': [
-                0.378,  # c
-                0.000,  # loc
-                8.123  # scale
+                gpd_c,  # c
+                gpd_l,  # loc
+                gpd_s  # scale
                 ]
             }
 
@@ -41,15 +41,14 @@ def gross_nb_fft_test():
     return gross_agg
 
 
-def limited_nb_fft_test():
+def limited_nb_fft_test(f_np=[1.2, 0.5], gpd_c=0.378, gpd_l=0, gpd_s=8.123, xs=1., lim=5.):
     print('Testing limited insurance structure with following:')
-    f_np = [1.2, 0.5]
     x_gpd = {
             'dist': genpareto,
             'properties': [
-                0.378,  # c
-                0.000,  # loc
-                8.123  # scale
+                gpd_c,  # c
+                gpd_l,  # loc
+                gpd_s  # scale
                 ]
             }
 
@@ -66,7 +65,6 @@ def limited_nb_fft_test():
             )
 
     # Set up limit and excess amounts
-    xs, lim = 1.0, 5.0
     print(f'Excess = {xs:,.3f}')
     print(f'Limit = {lim:,.3f}')
     lim_agg.setup_layer(excess=xs, limit=lim)
@@ -82,16 +80,14 @@ def limited_nb_fft_test():
     return lim_agg
 
 
-def stop_loss_nb_test():
+def stop_loss_nb_test(f_np=[1.2, 0.5], gpd_c=0.378, gpd_l=0, gpd_s=8.123):
     print('Testing stop-loss with the following:')
-    f_np = [1.2, 0.5]
-
     x_gpd = {
             'dist': genpareto,
             'properties': [
-                0.378,  # c
-                0.000,  # loc
-                8.123  # scale
+                gpd_c,  # c
+                gpd_l,  # loc
+                gpd_s  # scale
                 ]
             }
 
@@ -127,3 +123,14 @@ def stop_loss_nb_test():
 
     print(results)
     return [gross_agg, sl_agg]
+
+
+if __name__ == '__main__':
+    print('Testing gross version...')
+    gross_nb_fft_test()
+
+    print('Testing net version...')
+    limited_nb_fft_test()
+
+    print('Testing stop loss version...')
+    stop_loss_nb_test()

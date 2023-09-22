@@ -2,11 +2,12 @@
 # Testing the functionality of Credit_Underwriter class, including visuals.
 #
 # Note: Yahoo finance only provides options data for US entities.
+from context import access_root_dir
+access_root_dir(1)
 
 from ins_mat.special.credit import risk, credit_module
 
 import pandas as pd
-import numpy as np
 import yfinance as yf
 import datetime as dt
 
