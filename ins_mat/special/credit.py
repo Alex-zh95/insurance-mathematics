@@ -136,7 +136,7 @@ class credit_module():
         self.premiums = {}
         self.credit_spread = {}
 
-    def calculate_implied_volatility(self, rsk, override: float | None = None) -> None:
+    def calculate_implied_volatility(self, rsk, override_sigma: float | None = None) -> None:
         '''
         Use the Black-Scholes equation to obtain
 
@@ -149,6 +149,8 @@ class credit_module():
         ----------
         rsk: risk
             Selected risk in portfolio.
+        override_sigma: float | None = None,
+            Supply own estimate of equity volatility. Set to None to derive one from available options.
         '''
 
         # Helper function wrappers around the Black-Sholes solver
@@ -186,10 +188,10 @@ class credit_module():
             return ((equity_volatility * current_equity_price) - (asset_volatility * current_assets * delta))
 
         # Solve iteratively for equity volatility
-        if override is None:
+        if override_sigma is None:
             self.equity_volatilities[rsk.name] = newton(lambda v: bse(v, rsk) - rsk.option_price, 1.0)
         else:
-            self.equity_volatilities[rsk.name] = override
+            self.equity_volatilities[rsk.name] = override_sigma
 
         # Convert from equity volatility to asset volatility (unobservable)
         try:

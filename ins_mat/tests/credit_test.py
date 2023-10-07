@@ -107,7 +107,7 @@ def credit_risk_generation(yf_risks, limit=100e6, debt_maturity=1., risk_free_ra
 
         print(f'Solving for {rsk.name}')
         print('Attaining implied asset volatility...')
-        uw.calculate_implied_volatility(rsk, override=ovr)
+        uw.calculate_implied_volatility(rsk, override_sigma=ovr)
 
         print('Attaining sharpe ratio')
         uw.calculate_sharpe_ratio(rsk)
