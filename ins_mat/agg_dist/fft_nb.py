@@ -85,8 +85,8 @@ class nb_fft_agg(aggregate_distribution):
         cov = nbinom.var(*self.frequency['properties']) / lam
 
         severity_pdf_hat = np.fft.fft(self.severity_dpdf)
-        agg_pdf_hat = (1/(1+(cov-1)*(1-severity_pdf_hat)))**(lam/(cov-1))
-        self._pdf = np.real(np.fft.ifft(agg_pdf_hat))
+        self.cf = (1/(1+(cov-1)*(1-severity_pdf_hat)))**(lam/(cov-1))
+        self._pdf = np.real(np.fft.ifft(self.cf))
 
         self._compile_aggregate_cdf()
 

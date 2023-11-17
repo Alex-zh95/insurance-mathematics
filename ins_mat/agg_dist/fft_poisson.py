@@ -46,9 +46,9 @@ class poisson_fft_agg(aggregate_distribution):
         Initialize the frequency and severity distributions.
         '''
         frequency_distribution = {
-                'dist': poisson,
-                'properties': [frequency]
-                }
+            'dist': poisson,
+            'properties': [frequency]
+        }
 
         super().__init__(frequency_distribution, severity_distribution, discretization_step, grid)
 
@@ -77,8 +77,8 @@ class poisson_fft_agg(aggregate_distribution):
             self.discretize_pdf()
 
         severity_pdf_hat = np.fft.fft(self.severity_dpdf)
-        agg_pdf_hat = np.exp(self.get_frequency_mean() * (severity_pdf_hat - 1))
-        self._pdf = np.real(np.fft.ifft(agg_pdf_hat))
+        self.cf = np.exp(self.get_frequency_mean() * (severity_pdf_hat - 1))
+        self._pdf = np.real(np.fft.ifft(self.cf))
 
         self._compile_aggregate_cdf()
 

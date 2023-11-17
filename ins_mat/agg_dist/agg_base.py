@@ -56,6 +56,8 @@ class aggregate_distribution:
         self._cdf = None
         self.losses = None
 
+        self.cf = None  # Characteristic function (store the FFT-vector for other purposes)
+
         self.diagnostics = None
         self._layer = False
 
@@ -364,9 +366,9 @@ class aggregate_distribution:
         Procedure to check that mean and variance of the generated aggregate loss are equal to the theoretical values, within some tolerance.
         '''
         self.diagnostics = {
-                'Distribution_total': np.sum(self._pdf),
-                'Theoretical_mean': self.mean(theoretical=theoretical),
-                'Agg_mean': self.mean(theoretical='False'),
-                'Theoretical_var': self.var(theoretical=theoretical),
-                'Agg_var': self.var(theoretical='False')
-                }
+            'Distribution_total': np.sum(self._pdf),
+            'Theoretical_mean': self.mean(theoretical=theoretical),
+            'Agg_mean': self.mean(theoretical='False'),
+            'Theoretical_var': self.var(theoretical=theoretical),
+            'Agg_var': self.var(theoretical='False')
+        }
