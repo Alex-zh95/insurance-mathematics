@@ -1,7 +1,7 @@
 from context import access_root_dir
 access_root_dir(1)
 
-from ins_mat.agg_dist.fft_nb import nb_fft_agg
+from ins_mat.agg_dist.fft_nb import Agg_NbFFT
 from scipy.stats import genpareto
 import pandas as pd
 import copy
@@ -24,7 +24,7 @@ def gross_nb_fft_test(f_np=[1.2, 0.5], gpd_c=0.378, gpd_l=0, gpd_s=8.123):
     print('\n')
 
     # Create instance
-    gross_agg = nb_fft_agg(
+    gross_agg = Agg_NbFFT(
             n=f_np[0],
             p=f_np[1],
             severity_distribution=x_gpd
@@ -58,7 +58,7 @@ def limited_nb_fft_test(f_np=[1.2, 0.5], gpd_c=0.378, gpd_l=0, gpd_s=8.123, xs=1
     print('\n')
 
     # Create instance
-    lim_agg = nb_fft_agg(
+    lim_agg = Agg_NbFFT(
             n=f_np[0],
             p=f_np[1],
             severity_distribution=x_gpd
@@ -97,7 +97,7 @@ def stop_loss_nb_test(f_np=[1.2, 0.5], gpd_c=0.378, gpd_l=0, gpd_s=8.123):
     print('\n')
 
     # Create instance of gross
-    gross_agg = nb_fft_agg(
+    gross_agg = Agg_NbFFT(
             n=f_np[0],
             p=f_np[1],
             severity_distribution=x_gpd

@@ -3,7 +3,7 @@ access_root_dir(1)
 
 from ins_mat.agg_dist.agg_sim import agg_sim
 from ins_mat.agg_dist.fft_nb import nb_fft_agg
-from ins_mat.agg_dist.fft_poisson import poisson_fft_agg
+from ins_mat.agg_dist.fft_poisson import Agg_PoiFft
 from scipy.stats import genpareto, nbinom, poisson
 
 
@@ -75,7 +75,7 @@ def agg_lim_test():
     print('\n')
 
     # Create instance of the FFT
-    agg = poisson_fft_agg(
+    agg = Agg_PoiFft(
             frequency=f_lambda,
             severity_distribution=x_gpd
             )

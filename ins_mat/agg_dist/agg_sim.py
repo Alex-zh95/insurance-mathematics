@@ -2,10 +2,10 @@ import numpy as np
 import bisect
 from joblib import Parallel, delayed
 
-from ins_mat.agg_dist.agg_base import aggregate_distribution
+from ins_mat.agg_dist.agg_base import AggregateDistribution
 
 
-class agg_sim(aggregate_distribution):
+class AggSim(AggregateDistribution):
     '''
     Define and build aggregate distribution via Monte-Carlo simulation from given frequency and severity distributions.
 
@@ -196,7 +196,7 @@ class agg_sim(aggregate_distribution):
 
             return None
         else:
-            new_sim_agg = agg_sim(
+            new_sim_agg = AggSim(
                     frequency_distribution=self.frequency,
                     severity_distribution=self.severity,
                     n=self.nsims,

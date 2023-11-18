@@ -3,7 +3,7 @@ from typing import Tuple
 import bisect
 
 
-class aggregate_distribution:
+class AggregateDistribution:
     '''
     Base class for aggregate distributions.
 
@@ -65,25 +65,37 @@ class aggregate_distribution:
         '''
         Returns the mean of the chosen frequency distribution
         '''
-        return self.frequency['dist'].mean(*self.frequency['properties'])
+        if self.frequency['dist'] is not None:
+            return self.frequency['dist'].mean(*self.frequency['properties'])
+        else:
+            return self.frequency['properties'][0]
 
     def get_severity_mean(self) -> float:
         '''
         Returns the mean of the chosen severity distribution
         '''
-        return self.severity['dist'].mean(*self.severity['properties'])
+        if self.severity['dist'] is not None:
+            return self.severity['dist'].mean(*self.severity['properties'])
+        else:
+            return self.severity['properties'][0]
 
     def get_frequency_variance(self) -> float:
         '''
         Returns the variance of the chosen frequency distribution
         '''
-        return self.frequency['dist'].var(*self.frequency['properties'])
+        if self.frequency['dist'] is not None:
+            return self.frequency['dist'].var(*self.frequency['properties'])
+        else:
+            return self.frequency['properties'][1]
 
     def get_severity_variance(self) -> float:
         '''
         Returns the variance of the chosen severity distribution
         '''
-        return self.severity['dist'].var(*self.severity['properties'])
+        if self.severity['dist'] is not None:
+            return self.severity['dist'].var(*self.severity['properties'])
+        else:
+            return self.severity['properties'][1]
 
     def mean(self,
              theoretical: str = 'True'
@@ -337,6 +349,43 @@ class aggregate_distribution:
             self._compile_aggregate_cdf()
         else:
             return dpdf
+
+    def add(self, other):  # other: AggregateDistribution, Returns: AggregateDistribution
+        '''
+        Add two aggregate distributions together. We assume independence of distributions and so the result is the multiplication of the characteristic functions.
+
+        We initialize the result in another aggregate distribution class, calculate the pdf and cdf also.
+
+        Some undefined elements may still pull through, e.g. layer information, underlying frequency or severity distributions.
+        '''
+        if ((self.M != other.M) | (self.h != other.h)):
+            raise AssertionError('Grid resolution must match!')
+
+        # Create the new object
+        result = AggregateDistribution(
+            frequency_distribution={
+                'dist': None,
+                'properties': [
+                    self.get_frequency_mean() + other.get_frequency_mean(),
+                    self.get_frequency_variance() + other.get_frequency_variance(),
+                ]
+            },
+            severity_distribution={
+                'dist': None,
+                'properties': [
+                    self.get_severity_mean() + other.get_severity_mean(),
+                    self.get_severity_variance() + other.get_severity_variance(),
+                ]
+            },
+            discretization_step=self.h,
+            grid=self.M
+        )
+
+        result.cf = self.cf * other.cf
+        result._pdf = np.real(np.fft.ifft(self.cf))
+        result.losses = self.losses
+
+        return result
 
     # ABSTRACT FUNCTIONS
 
