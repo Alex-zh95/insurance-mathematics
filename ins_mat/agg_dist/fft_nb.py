@@ -4,7 +4,7 @@ from scipy.stats import nbinom
 from ins_mat.agg_dist.agg_base import AggregateDistribution
 
 
-class Agg_NbFFT(AggregateDistribution):
+class Agg_NbFft(AggregateDistribution):
     '''
     Define and build an aggregate distribution using a Negative Binomial NB frequency via Fourier transform.
 
