@@ -243,9 +243,19 @@ class AggregateDistribution:
 
         if X is None:
             dpdf = dist.cdf(self.losses+h/2, *dist_params) - dist.cdf(self.losses-h/2, *dist_params)
+
+            # Check validity of the output pdf
+            if np.abs(np.sum(dpdf) - 1) > h:
+                Warning(f'Possibly invalid discretization produced! SUM(DPDF) = {np.sum(dpdf)}')
+
             self.severity_dpdf = dpdf
         else:
             dpdf = dist.cdf(X+h/2, *dist_params) - dist.cdf(X-h/2, *dist_params)
+
+            # Check validity of the output pdf
+            if np.abs(np.sum(dpdf) - 1) > h:
+                Warning(f'Possibly invalid discretization produced! SUM(DPDF) = {np.sum(dpdf)}')
+
             return dpdf
 
     def setup_layer(self,
@@ -421,3 +431,7 @@ class AggregateDistribution:
             'Theoretical_var': self.var(theoretical=theoretical),
             'Agg_var': self.var(theoretical='False')
         }
+
+        # Check validity of the output pdf
+        if np.abs(self.diagnostics['Distribution_total'] - 1) > self.h:
+            Warning(f'Possibly invalid final PDF produced! SUM(AGGPDF) = {self.diagnostics["Distribution_total"]}')
