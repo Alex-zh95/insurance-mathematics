@@ -296,7 +296,7 @@ class AggregateDistribution:
 
         # Treatment of excess
         dpdf = np.zeros(self.M)
-        dpdf[:min(lh, self.M - 1)] = self.severity_dpdf[range(xh, min(xh + lh, self.M - 1))] / p_xs_survival
+        dpdf[:min(lh, self.M - 1 - xh)] = self.severity_dpdf[range(xh, min(xh + lh, self.M - 1 - xh))] / p_xs_survival
 
         # Treatment of limit
         dpdf[lh] = 1 - dpdf.sum()
@@ -347,7 +347,7 @@ class AggregateDistribution:
 
         # Treatment of excess
         dpdf = np.zeros(M)
-        dpdf[:min(alh, M - 1)] = self._pdf[range(axh, min(axh + alh, M - 1))] / p_xs_survival
+        dpdf[:min(alh, M - 1 - axh)] = self._pdf[range(axh, min(axh + alh, M - 1 - axh))] / p_xs_survival
 
         # Treatment of limit
         dpdf[alh] = 1 - dpdf.sum()
