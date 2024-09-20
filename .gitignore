@@ -3,3 +3,5 @@
 ins_mat/tests/pkls/*
 *.pkl
 .venv/
+*.lock
+.pdm-python

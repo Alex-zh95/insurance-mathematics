@@ -1,0 +1,34 @@
+[project]
+name = "insurance-mathematics"
+version = "0.9"
+description = "Default template for PDM package"
+authors = [
+    {name = "Alex", email = "zh.c.l.z.95@gmail.com"},
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "ipython",
+    "seaborn",
+    "joblib",
+    "yfinance",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false
+
+[[tool.pdm.source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "ipykernel",
+]
