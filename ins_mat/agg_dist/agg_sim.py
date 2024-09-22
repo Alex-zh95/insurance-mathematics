@@ -96,13 +96,15 @@ class AggSim(AggregateDistribution):
              theoretical: str = "True"
              ):
         '''
-        Returns the mean of the aggregate distribution. If `theoretical` is set to true, we return
+        Returns the mean of the aggregate distribution.
+
+        If `theoretical` is set to true and ground up, we return
 
         E(severity)*E(frequency)
 
         Otherwise return the simulated mean
         '''
-        if theoretical == "True":
+        if (theoretical == "True") & (self.limit is None) & (self.xs == 0):
             return self.get_severity_mean() * self.get_frequency_mean()
         else:
             return np.mean(self.losses)
@@ -117,7 +119,7 @@ class AggSim(AggregateDistribution):
 
         Otherwise return the simulated variance
         '''
-        if theoretical == "True":
+        if (theoretical == "True") & (self.limit is None) & (self.xs == 0):
             return self.get_frequency_mean()*self.get_severity_variance() + self.get_frequency_variance()*(self.get_severity_mean())**2
         else:
             return np.var(self.losses, ddof=1)
