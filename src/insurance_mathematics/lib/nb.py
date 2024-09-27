@@ -29,8 +29,8 @@ def nb_method_of_moments(data: np.ndarray | pd.DataFrame | pd.Series) -> Tuple[f
         Shape and scale of the negative binomial distribution (see scipy.stats.nbinom)
     '''
     mean, var = data.mean(), data.var()
-    r = mean**2/(var - mean)
-    k = mean/var
+    r = mean**2 / (var - mean)
+    k = mean / var
     return (r, k)
 
 
@@ -52,8 +52,8 @@ def nb_likelihood(r: float, data: np.ndarray | pd.DataFrame | pd.Series) -> floa
     '''
 
     N = data.shape[0]
-    sum_digamma = np.sum(digamma(data + r)) - N*digamma(r)
-    log = N*np.log(r/(r + np.sum(data/N)))
+    sum_digamma = np.sum(digamma(data + r)) - N * digamma(r)
+    log = N * np.log(r / (r + np.sum(data / N)))
     return sum_digamma + log
 
 
@@ -74,7 +74,7 @@ def nb_mle_get_prob(r: float, data: np.ndarray | pd.DataFrame | pd.Series) -> fl
         Shape parameter
     '''
     N = data.shape[0]
-    return N*r/(N*r + np.sum(data))
+    return N * r / (N * r + np.sum(data))
 
 
 def get_frequency_measures(data: pd.DataFrame | pd.Series | np.ndarray,

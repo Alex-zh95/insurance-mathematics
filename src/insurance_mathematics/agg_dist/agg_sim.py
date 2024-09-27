@@ -2,7 +2,7 @@ import numpy as np
 import bisect
 from joblib import Parallel, delayed
 
-from ins_mat.agg_dist.agg_base import AggregateDistribution
+from src.insurance_mathematics.agg_dist.agg_base import AggregateDistribution
 
 
 class AggSim(AggregateDistribution):
@@ -104,7 +104,7 @@ class AggSim(AggregateDistribution):
 
         Otherwise return the simulated mean
         '''
-        if (theoretical == "True") & (self.limit is None) & (self.xs == 0):
+        if (theoretical == "True") & (self.lim is None) & (self.xs == 0):
             return self.get_severity_mean() * self.get_frequency_mean()
         else:
             return np.mean(self.losses)
@@ -119,7 +119,7 @@ class AggSim(AggregateDistribution):
 
         Otherwise return the simulated variance
         '''
-        if (theoretical == "True") & (self.limit is None) & (self.xs == 0):
+        if (theoretical == "True") & (self.lim is None) & (self.xs == 0):
             return self.get_frequency_mean()*self.get_severity_variance() + self.get_frequency_variance()*(self.get_severity_mean())**2
         else:
             return np.var(self.losses, ddof=1)
