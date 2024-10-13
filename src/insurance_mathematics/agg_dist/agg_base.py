@@ -397,27 +397,27 @@ class AggregateDistribution:
 
         return result
 
-    def appr_finite_ruin_probability(self, init_income: float, premium_rate: float) -> float:
+    def appr_finite_ruin_probability(self, init_income: float, premium: float) -> float:
         '''
         Approximate finite ruin probability given initial income and premium rate as defined. This calculation is exact if a compound Poisson distribution is used.
 
         Parameters
         ----------
         init_income: float
-            Initial premium income
-        premium_rate: float
-            Rate of premium income (not premium as rate by exposure/limit)
+            Initial capital
+        premium: float
+            Premium income
 
         Returns
         -------
         Finite ruin probability: float
         '''
-        loss_ratio = self.mean()
+        loss_ratio = self.mean('False') / premium
 
         if loss_ratio >= 1:
             return 1.0
 
-        return (1 - loss_ratio / premium_rate) * self.cdf(init_income)
+        return loss_ratio * (1 - self.cdf(init_income + premium))
 
     # ABSTRACT FUNCTIONS
 
