@@ -42,19 +42,17 @@ class Agg_NbFft(AggregateDistribution):
             p: float,
             severity_distribution: dict,
             discretization_step: float = 0.01,
-            grid: float = 1048576
-            ):
+            grid: float = 1048576):
         '''
         Initialize the frequency and severity distributions.
         '''
         frequency_distribution = {
-                'dist': nbinom,
-                'properties': [n, p]
-                }
+            'dist': nbinom,
+            'properties': [n, p]}
 
         super().__init__(frequency_distribution, severity_distribution, discretization_step, grid)
 
-        self.losses = np.linspace(self.h, self.M*self.h, self.M)
+        self.losses = np.linspace(self.h, self.M * self.h, self.M)
 
     def thin_frequency(self, k: float):
         '''
@@ -64,8 +62,8 @@ class Agg_NbFft(AggregateDistribution):
 
         where q is the probability of failure given n successes
         '''
-        q = 1-self.frequency['properties'][1]  # scipy.stats definition uses p as "probability of success" but we need probability of failure
-        self.frequency['properties'][1] = 1-k*q/(1-q+k*q)
+        q = 1 - self.frequency['properties'][1]  # scipy.stats definition uses p as "probability of success" but we need probability of failure
+        self.frequency['properties'][1] = 1 - k * q / (1 - q + k * q)
 
     def compile_aggregate_distribution(self):
         '''
@@ -85,7 +83,7 @@ class Agg_NbFft(AggregateDistribution):
         cov = nbinom.var(*self.frequency['properties']) / lam
 
         severity_pdf_hat = np.fft.fft(self.severity_dpdf)
-        self.cf = (1/(1+(cov-1)*(1-severity_pdf_hat)))**(lam/(cov-1))
+        self.cf = (1 / (1 + (cov - 1) * (1 - severity_pdf_hat)))**(lam / (cov - 1))
         self._pdf = np.real(np.fft.ifft(self.cf))
 
         self._compile_aggregate_cdf()

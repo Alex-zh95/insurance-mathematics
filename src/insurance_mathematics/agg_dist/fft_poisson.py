@@ -40,8 +40,7 @@ class Agg_PoiFft(AggregateDistribution):
             frequency: float,
             severity_distribution: dict,
             discretization_step: float = 0.01,
-            grid: float = 1048576
-            ):
+            grid: float = 1048576):
         '''
         Initialize the frequency and severity distributions.
         '''
@@ -52,7 +51,7 @@ class Agg_PoiFft(AggregateDistribution):
 
         super().__init__(frequency_distribution, severity_distribution, discretization_step, grid)
 
-        self.losses = np.linspace(self.h, self.M*self.h, self.M)
+        self.losses = np.linspace(self.h, self.M * self.h, self.M)
 
     def thin_frequency(self, n: float):
         '''
