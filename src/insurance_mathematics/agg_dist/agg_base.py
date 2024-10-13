@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 from typing import Tuple
 import bisect
@@ -40,8 +42,7 @@ class AggregateDistribution:
             frequency_distribution: dict,
             severity_distribution: dict,
             discretization_step: float = 0.01,
-            grid: float = 1048576
-            ):
+            grid: float = 1048576):
         '''
         Initialize the frequency and severity distributions.
         '''
@@ -127,11 +128,11 @@ class AggregateDistribution:
         Otherwise return the approximation
         '''
         if theoretical == 'True':
-            return self.get_frequency_mean()*self.get_severity_variance() + self.get_frequency_variance()*(self.get_severity_mean())**2
+            return self.get_frequency_mean() * self.get_severity_variance() + self.get_frequency_variance() * (self.get_severity_mean())**2
         elif theoretical == 'Partial':
             severity_mean = np.sum(self.severity_dpdf * self.losses)
             severity_var = np.sum(self.severity_dpdf * self.losses**2) - severity_mean**2
-            return self.get_frequency_mean()*severity_var + self.get_frequency_variance()*(severity_mean)**2
+            return self.get_frequency_mean() * severity_var + self.get_frequency_variance() * (severity_mean)**2
         else:
             return np.sum(self._pdf * (self.losses**2)) - self.mean(theoretical='False')**2
 
@@ -209,8 +210,7 @@ class AggregateDistribution:
                        _dist=None,
                        _dist_params: list | None = None,
                        X: np.ndarray | None = None,
-                       h_step: float | None = None
-                       ):
+                       h_step: float | None = None):
         '''
         Discretize a provided severity distribution according to:
 
@@ -242,7 +242,7 @@ class AggregateDistribution:
             h = h_step
 
         if X is None:
-            dpdf = dist.cdf(self.losses+h/2, *dist_params) - dist.cdf(self.losses-h/2, *dist_params)
+            dpdf = dist.cdf(self.losses + h / 2, *dist_params) - dist.cdf(self.losses - h / 2, *dist_params)
 
             # Check validity of the output pdf
             if np.abs(np.sum(dpdf) - 1) > h:
@@ -250,7 +250,7 @@ class AggregateDistribution:
 
             self.severity_dpdf = dpdf
         else:
-            dpdf = dist.cdf(X+h/2, *dist_params) - dist.cdf(X-h/2, *dist_params)
+            dpdf = dist.cdf(X + h / 2, *dist_params) - dist.cdf(X - h / 2, *dist_params)
 
             # Check validity of the output pdf
             if np.abs(np.sum(dpdf) - 1) > h:
@@ -360,7 +360,7 @@ class AggregateDistribution:
         else:
             return dpdf
 
-    def add(self, other):  # other: AggregateDistribution, Returns: AggregateDistribution
+    def add(self, other: AggregateDistribution) -> AggregateDistribution:
         '''
         Add two aggregate distributions together. We assume independence of distributions and so the result is the multiplication of the characteristic functions.
 
@@ -396,6 +396,28 @@ class AggregateDistribution:
         result.losses = self.losses
 
         return result
+
+    def appr_finite_ruin_probability(self, init_income: float, premium_rate: float) -> float:
+        '''
+        Approximate finite ruin probability given initial income and premium rate as defined. This calculation is exact if a compound Poisson distribution is used.
+
+        Parameters
+        ----------
+        init_income: float
+            Initial premium income
+        premium_rate: float
+            Rate of premium income (not premium as rate by exposure/limit)
+
+        Returns
+        -------
+        Finite ruin probability: float
+        '''
+        loss_ratio = self.mean()
+
+        if loss_ratio >= 1:
+            return 1.0
+
+        return (1 - loss_ratio / premium_rate) * self.cdf(init_income)
 
     # ABSTRACT FUNCTIONS
 
