@@ -21,7 +21,11 @@ license = {text = "MIT"}
 
 
 [tool.pdm]
-distribution = false
+distribution = true
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
 [[tool.pdm.source]]
 url = "https://pypi.org/simple"
