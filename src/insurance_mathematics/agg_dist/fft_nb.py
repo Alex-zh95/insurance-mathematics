@@ -13,7 +13,7 @@ class Agg_NbFft(AggregateDistribution):
     Distributions take the form:
 
     {
-        dist: scipy.statjs
+        dist: scipy.stats
         properties: statistical parameters required (in dict form)
     }
 
