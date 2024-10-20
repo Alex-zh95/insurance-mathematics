@@ -299,6 +299,7 @@ class AggregateDistribution:
         dpdf = np.pad(self.severity_dpdf[xh:], pad_width=(0, xh), mode='constant') / p_xs_survival
 
         # Treatment of limit
+        dpdf[lh:] = 0.0
         dpdf[lh] = 1 - dpdf.sum()
 
         if inplace:

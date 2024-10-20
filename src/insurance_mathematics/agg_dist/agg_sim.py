@@ -50,7 +50,7 @@ class AggSim(AggregateDistribution):
             limit: float | None = None,
             agg_excess: float = 0,
             agg_limit: float | None = None
-            ):
+    ):
         super().__init__(frequency_distribution, severity_distribution)
         self.n_sims = n
 
@@ -93,7 +93,7 @@ class AggSim(AggregateDistribution):
 
     # Aggregate statistics overrides
     def mean(self,
-             theoretical: str = "True"
+             theoretical: bool = False
              ):
         '''
         Returns the mean of the aggregate distribution.
@@ -104,13 +104,13 @@ class AggSim(AggregateDistribution):
 
         Otherwise return the simulated mean
         '''
-        if (theoretical == "True") & (self.lim is None) & (self.xs == 0):
+        if (theoretical) & (self.lim is None) & (self.xs == 0):
             return self.get_severity_mean() * self.get_frequency_mean()
         else:
             return np.mean(self.losses)
 
     def var(self,
-            theoretical: str = "True"
+            theoretical: bool = False
             ):
         '''
         Returns the variance of the aggregate distribution. If `theoretical` is set to true, we return
@@ -119,8 +119,8 @@ class AggSim(AggregateDistribution):
 
         Otherwise return the simulated variance
         '''
-        if (theoretical == "True") & (self.lim is None) & (self.xs == 0):
-            return self.get_frequency_mean()*self.get_severity_variance() + self.get_frequency_variance()*(self.get_severity_mean())**2
+        if (theoretical) & (self.lim is None) & (self.xs == 0):
+            return self.get_frequency_mean() * self.get_severity_variance() + self.get_frequency_variance() * (self.get_severity_mean())**2
         else:
             return np.var(self.losses, ddof=1)
 
@@ -160,7 +160,7 @@ class AggSim(AggregateDistribution):
 
         # Obtain empirical pdf by using obtaining relative position in vector
         indices = np.array([bisect.bisect(self.losses, xi) for xi in _x])
-        agg_cdf = indices/self.losses.shape[0]
+        agg_cdf = indices / self.losses.shape[0]
 
         # Pass corresponding pdf output
         return agg_cdf
@@ -199,28 +199,27 @@ class AggSim(AggregateDistribution):
             return None
         else:
             new_sim_agg = AggSim(
-                    frequency_distribution=self.frequency,
-                    severity_distribution=self.severity,
-                    n=self.nsims,
-                    excess=excess,
-                    limit=limit,
-                    agg_excess=agg_excess,
-                    agg_limit=agg_limit
-                    )
+                frequency_distribution=self.frequency,
+                severity_distribution=self.severity,
+                n=self.nsims,
+                excess=excess,
+                limit=limit,
+                agg_excess=agg_excess,
+                agg_limit=agg_limit
+            )
             return new_sim_agg
 
-    def setup_agg_layer(self,
-                        agg_excess: float,
-                        agg_limit: float | None,
+    def setup_agg_limit(self,
+                        agg_limit: float = 0.0,
                         inplace: bool = True):
         '''Somewhat redundant - but maintains inheritance conventions - uses setup_layer(...)'''
         self.setup_layer(
-                excess=self.excess,
-                limit=self.limit,
-                agg_excess=agg_excess,
-                agg_limit=agg_limit,
-                inplace=inplace
-                )
+            excess=self.excess,
+            limit=self.limit,
+            agg_excess=0.0,
+            agg_limit=agg_limit,
+            inplace=inplace
+        )
 
     def pdf(self, x: float | list):
         '''This function not needed for simulation'''
