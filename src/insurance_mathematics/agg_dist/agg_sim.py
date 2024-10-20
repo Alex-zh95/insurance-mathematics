@@ -2,7 +2,7 @@ import numpy as np
 import bisect
 from joblib import Parallel, delayed
 
-from src.insurance_mathematics.agg_dist.agg_base import AggregateDistribution
+from insurance_mathematics.agg_dist.agg_base import AggregateDistribution
 
 
 class AggSim(AggregateDistribution):
@@ -89,7 +89,7 @@ class AggSim(AggregateDistribution):
         self.losses = np.sort(parallel_pool(delayed_generate_severities))
 
         if (self.lim is None) & (self.xs is None) & (self.agg_d is None) & (self.agg_l is None):
-            self._validate_gross()
+            self._validate()
 
     # Aggregate statistics overrides
     def mean(self,

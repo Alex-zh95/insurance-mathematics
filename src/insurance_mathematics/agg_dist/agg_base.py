@@ -61,6 +61,7 @@ class AggregateDistribution:
 
         self.diagnostics = None
         self._layer = False
+        self._agglayer = False
 
     def get_frequency_mean(self) -> float:
         '''
@@ -99,7 +100,7 @@ class AggregateDistribution:
             return self.severity['properties'][1]
 
     def mean(self,
-             theoretical: str = 'True'
+             theoretical: bool = False
              ):
         '''
         Returns the mean of the aggregate distribution. If `theoretical` is set to true, we return
@@ -110,15 +111,15 @@ class AggregateDistribution:
 
         Otherwise return the approximation
         '''
-        if theoretical == 'True':
+        if ((theoretical) & (not self._layer) & (not self._agglayer)):
             return self.get_severity_mean() * self.get_frequency_mean()
-        elif theoretical == 'Partial':
+        elif (theoretical & self._layer & (not self._agglayer)):
             return np.sum(self.severity_dpdf * self.losses) * self.get_frequency_mean()
         else:
             return np.sum(self._pdf * self.losses)
 
     def var(self,
-            theoretical: str = 'True'
+            theoretical: bool = False
             ):
         '''
         Returns the variance of the aggregate distribution. If `theoretical` is set to true, we return
@@ -127,14 +128,14 @@ class AggregateDistribution:
 
         Otherwise return the approximation
         '''
-        if theoretical == 'True':
+        if ((theoretical) & (~self._layer) & (~self._agglayer)):
             return self.get_frequency_mean() * self.get_severity_variance() + self.get_frequency_variance() * (self.get_severity_mean())**2
-        elif theoretical == 'Partial':
+        elif (theoretical & self._layer & (~self._agglayer)):
             severity_mean = np.sum(self.severity_dpdf * self.losses)
             severity_var = np.sum(self.severity_dpdf * self.losses**2) - severity_mean**2
             return self.get_frequency_mean() * severity_var + self.get_frequency_variance() * (severity_mean)**2
         else:
-            return np.sum(self._pdf * (self.losses**2)) - self.mean(theoretical='False')**2
+            return np.sum(self._pdf * (self.losses**2)) - self.mean(False)**2
 
     def ppf(self, q: float | Tuple):
         '''
@@ -260,7 +261,7 @@ class AggregateDistribution:
 
     def setup_layer(self,
                     excess: float,
-                    limit: float | None,
+                    limit: float = np.inf,
                     inplace: bool = True):
         '''
         Set up a suitable insurance structure with each-and-every excess and limits.
@@ -271,9 +272,9 @@ class AggregateDistribution:
         ----------
         excess: float,
             Excess retained (by insured)
-        limit: float
-            Limit, above which losses are ceded. Use None for no limit.
-        inplace: bool [Optional]
+        limit: float = np.inf
+            Limit, above which losses are ceded. Default to inf.
+        inplace: bool [Optional] = True
             If set, we overwrite the current discretized severity PDF, otherwise, return the discretized PDF as a vector, which can be inserted into another object
 
         Returns
@@ -289,14 +290,13 @@ class AggregateDistribution:
             self.discretize_pdf()
 
         # Discretize the limit and excess points
-        lh = int(limit / self.h) if limit is not None else self.M - 1
+        lh = int(min(limit / self.h, self.M - 1))
         xh = int(excess / self.h)
 
         p_xs_survival = 1 - np.sum(self.severity_dpdf[:xh])
 
-        # Treatment of excess
-        dpdf = np.zeros(self.M)
-        dpdf[:min(lh, self.M - 1 - xh)] = self.severity_dpdf[range(xh, min(xh + lh, self.M - 1 - xh))] / p_xs_survival
+        # Treatment of excess - shift all elements by xh and pad by 0s to the right
+        dpdf = np.pad(self.severity_dpdf[xh:], pad_width=(0, xh), mode='constant') / p_xs_survival
 
         # Treatment of limit
         dpdf[lh] = 1 - dpdf.sum()
@@ -309,19 +309,16 @@ class AggregateDistribution:
         else:
             return dpdf
 
-    def setup_agg_layer(self,
-                        agg_excess: float,
-                        agg_limit: float | None,
+    def setup_agg_limit(self,
+                        agg_limit: float,
                         inplace: bool = True):
         '''
-        Set up aggregate layer modifiers, overwriting the aggregate pdf and cdf if `inplace` is set to True.
+        Set up aggregate layer limit, overwriting the aggregate pdf and cdf if `inplace` is set to True.
 
         Parameters
         ----------
-        agg_excess: float,
-            Aggregate excess retained (by insured)
-        agg_limit: float | None
-            Aggregate limit, above which losses are ceded. None implies infinite limit.
+        agg_limit: float = np.inf
+            Aggregate limit, above which losses are ceded.
         inplace: bool [Optional]
             If set, we overwrite the current discretized aggregate PDF, otherwise, return the discretized PDF as a vector, which can be inserted into another object
 
@@ -330,6 +327,8 @@ class AggregateDistribution:
         dpdf: np.ndarray | None
             Discretized aggregate PDF after layer modification (only when inplace is not set to True)
         '''
+        self._layer = True
+        self._agglayer = True
 
         # Function should only be available after compilation
         if self._cdf is None:
@@ -340,23 +339,21 @@ class AggregateDistribution:
 
         # Cut up the aggregate pdf
         M = self._pdf.shape[0]
-        alh = int(agg_limit / self.h) if agg_limit is not None else M - 1
-        axh = int(agg_excess / self.h)
-
-        p_xs_survival = 1 - np.sum(self._pdf[:axh])
-
-        # Treatment of excess
-        dpdf = np.zeros(M)
-        dpdf[:min(alh, M - 1 - axh)] = self._pdf[range(axh, min(axh + alh, M - 1 - axh))] / p_xs_survival
+        alh = int(min(agg_limit / self.h, M - 1))
 
         # Treatment of limit
-        dpdf[alh] = 1 - dpdf.sum()
+        dpdf = np.copy(self._pdf)
+        dpdf[alh] = 1 - np.sum(self._pdf[:alh])
+        dpdf[alh + 1:] = 0.0
 
         if inplace:
-            self._pdf = dpdf
+            self._pdf = dpdf.copy()
 
             # Regenerate the CDF
             self._compile_aggregate_cdf()
+
+            # Rerun validation for completeness (not true validation anymore as no more theoretical techniques work)
+            self._validate()
         else:
             return dpdf
 
@@ -442,16 +439,16 @@ class AggregateDistribution:
     def _compile_aggregate_cdf(self):
         self._cdf = np.cumsum(self._pdf)
 
-    def _validate_gross(self, theoretical: str = 'True'):
+    def _validate(self):
         '''
         Procedure to check that mean and variance of the generated aggregate loss are equal to the theoretical values, within some tolerance.
         '''
         self.diagnostics = {
             'Distribution_total': np.sum(self._pdf),
-            'Theoretical_mean': self.mean(theoretical=theoretical),
-            'Agg_mean': self.mean(theoretical='False'),
-            'Theoretical_var': self.var(theoretical=theoretical),
-            'Agg_var': self.var(theoretical='False')
+            'Theoretical_mean': self.mean(True),
+            'Agg_mean': self.mean(False),
+            'Theoretical_var': self.var(True),
+            'Agg_var': self.var(False)
         }
 
         # Check validity of the output pdf

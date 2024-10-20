@@ -1,6 +1,6 @@
 [project]
 name = "insurance-mathematics"
-version = "0.9"
+version = "0.95"
 description = "Default template for PDM package"
 authors = [
     {name = "Alex", email = "zh.c.l.z.95@gmail.com"},
@@ -20,19 +20,21 @@ readme = "README.md"
 license = {text = "MIT"}
 
 
+
 [tool.pdm]
 distribution = true
-
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
 
 [[tool.pdm.source]]
 url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
+
 [tool.pdm.dev-dependencies]
 dev = [
     "ipykernel",
 ]
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+

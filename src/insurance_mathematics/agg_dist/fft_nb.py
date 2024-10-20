@@ -1,7 +1,7 @@
 import numpy as np
 
 from scipy.stats import nbinom
-from src.insurance_mathematics.agg_dist.agg_base import AggregateDistribution
+from insurance_mathematics.agg_dist.agg_base import AggregateDistribution
 
 
 class Agg_NbFft(AggregateDistribution):
@@ -88,7 +88,4 @@ class Agg_NbFft(AggregateDistribution):
 
         self._compile_aggregate_cdf()
 
-        if not self._layer:
-            self._validate_gross()
-        else:
-            self._validate_gross('Partial')
+        self._validate()

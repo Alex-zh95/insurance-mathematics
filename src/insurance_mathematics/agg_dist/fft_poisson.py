@@ -1,7 +1,7 @@
 import numpy as np
 
 from scipy.stats import poisson
-from src.insurance_mathematics.agg_dist.agg_base import AggregateDistribution
+from insurance_mathematics.agg_dist.agg_base import AggregateDistribution
 
 
 class Agg_PoiFft(AggregateDistribution):
@@ -81,7 +81,4 @@ class Agg_PoiFft(AggregateDistribution):
 
         self._compile_aggregate_cdf()
 
-        if not self._layer:
-            self._validate_gross()
-        else:
-            self._validate_gross('Partial')
+        self._validate()
