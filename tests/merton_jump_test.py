@@ -24,27 +24,37 @@ jump_mdl.compile_aggregate_distribution()
 print(f'Fourier mean for jump:      {jump_mdl.mean():,.3f}')
 
 # Plot probability against lr
-lrs = np.linspace(0.3, 1.2, 100)
+lrs = np.linspace(0.4, 1.2, 100)
 delts = []
 pExers = []
+pCall = []
 pExers2 = []
+pCall2 = []
 
 for lr in lrs:
     main_mdl = MertonJump_CompoundPoisson(jump_mdl, 0.03, 0.15, lr)
 
     delts.append(main_mdl.pi1())
     pExers.append(main_mdl.pi2())
+    pCall.append(main_mdl.price())
 
 for lr in lrs:
     main_mdl = MertonJump_CompoundPoisson(jump_mdl, 0.03, 0.25, lr)
     pExers2.append(main_mdl.pi2())
+    pCall2.append(main_mdl.price())
 
 # Plot graph
-fig, ax = plt.subplots(1, 1)
-ax.plot(lrs, pExers, label='Sig=0.15')
-ax.plot(lrs, pExers2, label='Sig=0.25')
-ax.set_xlabel('Loss ratio')
-ax.set_ylabel('Exercise probability')
-ax.grid()
-ax.legend()
+fig, ax = plt.subplots(1, 2)
+fig.set_size_inches(12, 8)
+ax[0].plot(lrs, pExers, label='Sig=0.15')
+ax[0].plot(lrs, pExers2, label='Sig=0.25')
+ax[0].set_xlabel('Loss ratio')
+ax[0].set_ylabel('Exercise probability')
+ax[0].grid()
+ax[1].plot(lrs, pCall, label='Sig=0.15')
+ax[1].plot(lrs, pCall2, label='Sig=0.25')
+ax[1].set_xlabel('Loss ratio')
+ax[1].set_ylabel('Call price')
+ax[1].grid()
+ax[1].legend()
 fig.show()

@@ -1,5 +1,6 @@
 import numpy as np
 
+from scipy.interpolate import interp1d
 from insurance_mathematics.agg_dist.fft_poisson import Agg_PoiFft
 
 
@@ -32,7 +33,7 @@ class MertonJump_CompoundPoisson():
         _jump_mdl: Agg_PoiFft       Aggregate loss distribution for jumps
         _rf: float                  Risk-free rate
         _sig: float                 Volatility for GBM
-        _lr: float                  ultimate loss ratio
+        _lr: float                  Ultimate loss ratio
         _assets: float = 1          Asset amount
         '''
         self.jump_mdl = _jump_mdl
@@ -47,7 +48,7 @@ class MertonJump_CompoundPoisson():
         self.delta = None
         self.pExercise = None
 
-    def cf(self, t: float = 1.0):
+    def cf(self, xi: np.array, t: float = 1.0):
         '''
         Define the characteristic function of the jump process.
 
@@ -57,31 +58,16 @@ class MertonJump_CompoundPoisson():
         rf, sigE = self.rn_mdl
         lambd = self.jump_mdl.get_frequency_mean()
         k = self.jump_mdl.get_severity_mean()
-        xi = self.xi
+
+        # Interpolate jump cf at shifted xi since cf is discretized - separate for real and imag parts
+        cf_jump_real = interp1d(self.xi, np.real(self.jump_mdl.cf), kind='linear', fill_value="extrapolate")
+        cf_jump_imag = interp1d(self.xi, np.imag(self.jump_mdl.cf), kind='linear', fill_value="extrapolate")
+
+        # Recombined complex interp
+        cf_jump_shifted = cf_jump_real(np.real(xi)) + 1j * cf_jump_imag(np.real(xi))
 
         gbm_part = 1j * xi * (rf - lambd * k * sigE**2 / 2) - 0.5 * xi**2 * sigE**2
-        jump_part = lambd * (self.jump_mdl.cf - 1)
-
-        return np.exp(t * (gbm_part + jump_part))
-
-    def _shifted_cf(self, t: float = 1.0):
-        rf, sigE = self.rn_mdl
-        lambd = self.jump_mdl.get_frequency_mean()
-        k = self.jump_mdl.get_severity_mean()
-        xi_shifted = self.xi - 1j
-
-        gbm_part = 1j * xi_shifted * (rf - lambd * k * sigE**2 / 2) - 0.5 * xi_shifted**2 * sigE**2
-        jump_part = lambd * (self.jump_mdl.cf - 1)
-
-        return np.exp(t * (gbm_part + jump_part))
-
-    def _icf(self, t: float = 1.0):
-        rf, sigE = self.rn_mdl
-        lambd = self.jump_mdl.get_frequency_mean()
-        k = self.jump_mdl.get_severity_mean()
-
-        gbm_part = 1j * -1j * (rf - lambd * k * sigE**2 / 2) - 0.5 * (-1j)**2 * sigE**2
-        jump_part = lambd * (self.jump_mdl.cf - 1)
+        jump_part = lambd * (cf_jump_shifted - 1)
 
         return np.exp(t * (gbm_part + jump_part))
 
@@ -89,7 +75,7 @@ class MertonJump_CompoundPoisson():
         K = self.lr * self.asset
 
         def integrand(x):
-            return np.exp(-1j * x * np.log(K)) * self.cf(t) / (1j * x)
+            return np.exp(-1j * x * np.log(K)) * self.cf(x, t) / (1j * x)
 
         y = np.real(integrand(self.xi))
 
@@ -104,7 +90,7 @@ class MertonJump_CompoundPoisson():
         K = self.lr * self.asset
 
         def integrand(x):
-            return np.exp(-1j * x * np.log(K)) * self._shifted_cf(t) / (1j * x * self._icf(t))
+            return np.exp(-1j * x * np.log(K)) * self.cf(x - 1j, t) / (1j * x * self.cf(-1j, t))
 
         y = np.real(integrand(self.xi))
 
@@ -121,4 +107,4 @@ class MertonJump_CompoundPoisson():
         rf = self.rn_mdl[0]
         p1 = self.pi1(t=t) if self.delta is None else self.delta
         p2 = self.pi2(t=t) if self.pExercise is None else self.pExercise
-        return E0 * p1 - K * np.exp(-rf * t) * p2
+        return np.max([E0 * p1 - K * np.exp(-rf * t) * p2, 0.0])
