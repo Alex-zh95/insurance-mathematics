@@ -5,7 +5,9 @@ from insurance_mathematics.agg_dist.fft_poisson import Agg_PoiFft
 
 
 class MertonJump_CompoundPoisson():
-    jump_mdl: Agg_PoiFft            # Compound Poisson jump model
+    jump_fr: float                  # Jump frequency (Poisson)
+    jump_cf: np.array               # Jump severity characteristic fn
+    jump_mean: float                # Jump severity mean
     rn_mdl: tuple[float, float]     # Risk-free rate and volatility
     xi: np.array                    # Frequency domain of losses
     pExercise: float | None         # Probability of exercise
@@ -18,37 +20,71 @@ class MertonJump_CompoundPoisson():
     h: int
 
     def __init__(self,
-                 _jump_mdl: Agg_PoiFft,
+                 _compPois_mdl: Agg_PoiFft,
                  _rf: float,
                  _sig: float,
                  _lr: float,
                  _asset: float = 1):
         '''
-        Merton jump diffusion model with standard geometric brownian motion (GBM) and a jump, specified by a compound Poisson distribution.
+        Merton jump diffusion model with standard geometric brownian motion (GBM) and an asset value jump, 
+        specified by a compound Poisson distribution, drive by possibly large/catastrophe losses not sufficiently
+        reflected by using just the GBM in isolation.
 
         We assume we are already in a risk-neutral world.
 
         Params
         ------
-        _jump_mdl: Agg_PoiFft       Aggregate loss distribution for jumps
+        _compPois_mdl: Agg_PoiFft   Aggregate loss distribution object
         _rf: float                  Risk-free rate
         _sig: float                 Volatility for GBM
         _lr: float                  Ultimate loss ratio
         _assets: float = 1          Asset amount
         '''
-        self.jump_mdl = _jump_mdl
         self.rn_mdl = [_rf, _sig]
-        self.M = self.jump_mdl.M
-        self.h = self.jump_mdl.h
 
-        # FFT Frequency domain for x but shifted by very small amt to avoid div by 0
-        self.xi = np.fft.fftfreq(self.jump_mdl.M, self.jump_mdl.h) + 0.001
         self.lr = _lr
         self.asset = _asset
         self.delta = None
         self.pExercise = None
 
-    def cf(self, xi: np.array, t: float = 1.0):
+        self.init_jumpMdl(_compPois_mdl)
+    
+    def init_jumpMdl(self, _compPois_mdl: Agg_PoiFft):
+        '''
+        Need to conver the loss model to a jump model
+        The frequency element stays the same as the occurrence of jumps = loss occurrence.
+
+        Severity becomes an 1 - severity / asset. We assume that asset amount is const
+        as is the case in this class. We extract the loss characteristic function
+        '''
+
+        # Discretized severity characteristic function (Xi, cf)
+        self.M = _compPois_mdl.M
+        self.h = _compPois_mdl.h
+
+        # FFT Frequency domain for x but shifted by very small amt to avoid div by 0
+        Xi = np.fft.fftfreq(self.M, self.h) + 0.001 # Avoid div by 0
+        self.xi = Xi
+
+        _compPois_mdl.discretize_pdf()
+        severity_cf = np.fft.fft(_compPois_mdl.severity_dpdf)
+
+        # Convert characteristic's severity input to jump input
+        Xi_jump = -Xi / self.asset
+        cf_jump_real = interp1d(Xi_jump, np.real(severity_cf), kind='linear', fill_value="extrapolate")
+        cf_jump_imag = interp1d(Xi_jump, np.imag(severity_cf), kind='linear', fill_value="extrapolate")
+
+        # Recombined complex interp - Severity CF on jump vec
+        severity_cf_on_jump = cf_jump_real(np.real(Xi_jump)) + 1j * cf_jump_imag(np.real(Xi_jump))
+
+        # Find jump output
+        self.jump_cf = np.exp(1j * Xi) * severity_cf_on_jump
+
+        # Remaining attributes and the discretization grid to inherit
+        self.jump_fr = _compPois_mdl.get_frequency_mean()
+        self.jump_mean = _compPois_mdl.get_severity_mean()
+
+    def cf(self, xi: np.array, t: float = 1.0) -> np.array:
         '''
         Define the characteristic function of the jump process.
 
@@ -56,12 +92,12 @@ class MertonJump_CompoundPoisson():
         exp(t*(GBM part + jump part))
         '''
         rf, sigE = self.rn_mdl
-        lambd = self.jump_mdl.get_frequency_mean()
-        k = self.jump_mdl.get_severity_mean()
+        lambd = self.jump_fr
+        k = self.jump_mean
 
         # Interpolate jump cf at shifted xi since cf is discretized - separate for real and imag parts
-        cf_jump_real = interp1d(self.xi, np.real(self.jump_mdl.cf), kind='linear', fill_value="extrapolate")
-        cf_jump_imag = interp1d(self.xi, np.imag(self.jump_mdl.cf), kind='linear', fill_value="extrapolate")
+        cf_jump_real = interp1d(self.xi, np.real(self.jump_cf), kind='linear', fill_value="extrapolate")
+        cf_jump_imag = interp1d(self.xi, np.imag(self.jump_cf), kind='linear', fill_value="extrapolate")
 
         # Recombined complex interp
         cf_jump_shifted = cf_jump_real(np.real(xi)) + 1j * cf_jump_imag(np.real(xi))
