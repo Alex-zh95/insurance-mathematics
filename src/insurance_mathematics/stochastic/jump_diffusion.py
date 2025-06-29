@@ -6,18 +6,18 @@ from insurance_mathematics.agg_dist.fft_poisson import Agg_PoiFft
 
 class MertonJump_CompoundPoisson():
     jump_fr: float                  # Jump frequency (Poisson)
-    jump_cf: np.array               # Jump severity characteristic fn
+    jump_cf: np.ndarray             # Jump severity characteristic fn
     jump_mean: float                # Jump severity mean
-    rn_mdl: tuple[float, float]     # Risk-free rate and volatility
-    xi: np.array                    # Frequency domain of losses
+    rn_mdl: list[float]             # Risk-free rate and volatility
+    xi: np.ndarray                  # Frequency domain of losses
     pExercise: float | None         # Probability of exercise
     delta: float | None             # Delta of the option
     lr: float                       # Loss ratio
     asset: float                    # Current level of assets
 
     # Discretization params used by FS
-    M: int
-    h: int
+    M: float
+    h: float
 
     def __init__(self,
                  _compPois_mdl: Agg_PoiFft,
@@ -63,7 +63,7 @@ class MertonJump_CompoundPoisson():
         self.h = _compPois_mdl.h
 
         # FFT Frequency domain for x but shifted by very small amt to avoid div by 0
-        Xi = np.fft.fftfreq(self.M, self.h) + 0.001 # Avoid div by 0
+        Xi = np.fft.fftfreq(int(self.M), self.h) + 0.001 # Avoid div by 0
         self.xi = Xi
 
         _compPois_mdl.discretize_pdf()
@@ -84,7 +84,7 @@ class MertonJump_CompoundPoisson():
         self.jump_fr = _compPois_mdl.get_frequency_mean()
         self.jump_mean = _compPois_mdl.get_severity_mean()
 
-    def cf(self, xi: np.array, t: float = 1.0) -> np.array:
+    def cf(self, xi: np.ndarray, t: float = 1.0) -> np.ndarray:
         '''
         Define the characteristic function of the jump process.
 

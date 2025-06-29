@@ -5,7 +5,7 @@ from typing import Tuple
 import bisect
 
 
-class AggregateDistribution:
+class AggregateDistribution():
     '''
     Base class for aggregate distributions.
 
@@ -36,6 +36,21 @@ class AggregateDistribution:
 
     Call compile_aggregate_distribution() to generate the aggregate distribution.
     '''
+    frequency: dict
+    severity: dict
+    
+    M: float
+    h: float
+
+    severity_dpdf: np.ndarray | None = None
+    _pdf: np.ndarray | None = None
+    _cdf: np.ndarray | None = None
+    losses: np.ndarray | None = None
+
+    cf: np.ndarray | None = None       # Characteristic function (store the FFT-vect for other purposes)
+    diagnostics: dict | None = None
+    _layer: bool = False
+    _agglayer: bool = False
 
     def __init__(
             self,
@@ -51,17 +66,6 @@ class AggregateDistribution:
 
         self.h = discretization_step
         self.M = grid
-
-        self.severity_dpdf = None
-        self._pdf = None
-        self._cdf = None
-        self.losses = None
-
-        self.cf = None  # Characteristic function (store the FFT-vector for other purposes)
-
-        self.diagnostics = None
-        self._layer = False
-        self._agglayer = False
 
     def get_frequency_mean(self) -> float:
         '''
@@ -128,9 +132,9 @@ class AggregateDistribution:
 
         Otherwise return the approximation
         '''
-        if ((theoretical) & (~self._layer) & (~self._agglayer)):
+        if ((theoretical) & (not self._layer) & (not self._agglayer)):
             return self.get_frequency_mean() * self.get_severity_variance() + self.get_frequency_variance() * (self.get_severity_mean())**2
-        elif (theoretical & self._layer & (~self._agglayer)):
+        elif (theoretical & self._layer & (not self._agglayer)):
             severity_mean = np.sum(self.severity_dpdf * self.losses)
             severity_var = np.sum(self.severity_dpdf * self.losses**2) - severity_mean**2
             return self.get_frequency_mean() * severity_var + self.get_frequency_variance() * (severity_mean)**2
