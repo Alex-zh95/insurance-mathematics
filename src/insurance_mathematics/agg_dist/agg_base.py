@@ -362,7 +362,7 @@ class AggregateDistribution():
         else:
             return dpdf
 
-    def add(self, other: AggregateDistribution) -> AggregateDistribution:
+    def __add__(self, other: AggregateDistribution) -> AggregateDistribution:
         '''
         Add two aggregate distributions together. We assume independence of distributions and so the result is the multiplication of the characteristic functions.
 
@@ -370,6 +370,9 @@ class AggregateDistribution():
 
         Some undefined elements may still pull through, e.g. layer information, underlying frequency or severity distributions.
         '''
+        if not isinstance(other, type(self)):
+            raise TypeError(f'unsupported operand for +: AggregateDistribution and {type(other).__name__}')
+
         if ((self.M != other.M) | (self.h != other.h)):
             raise AssertionError('Grid resolution must match!')
 
