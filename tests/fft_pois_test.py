@@ -1,122 +1,75 @@
+import os
+import sys
+
+# If not locally installed (or at least in editable mode), append path the base dir and src dir for module imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+
 from insurance_mathematics.agg_dist.fft_poisson import Agg_PoiFft
-from insurance_mathematics.agg_dist.agg_sim import AggSim
 from scipy import stats
-import numpy as np
 
-# Params
-pois_freq = 0.5
+import unittest
 
-frequency = {
-    'dist': stats.poisson,
-    'properties': [pois_freq]
-}
-
-severity = {
-    'dist': stats.lognorm,
-    'properties': [1.2, 0.0, 7.8]
-}
+from tests.fft_nb_test import percentage_error
 
 
-def perc_err(observed: float, expected: float) -> float:
-    return np.abs(observed - expected) / expected
+class Test_FFT_Pois(unittest.TestCase):
+    frequency: dict
+    severity: dict
+    layer: list
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.frequency = {
+            'dist': stats.poisson,
+            'properties': [0.5]
+        }
 
-def ground_up_test():
-    print("Ground-up test...")
-    mdl_fs = Agg_PoiFft(frequency=pois_freq, severity_distribution=severity)
-    mdl_sim = AggSim(frequency, severity)
+        cls.severity = {
+            'dist': stats.lognorm,
+            'properties': [1.2, 0.0, 7.8]
+        }
 
-    mdl_fs.compile_aggregate_distribution()
-    mdl_sim.compile_aggregate_distribution()
+        cls.layer = [3.0, 10.0]
 
-    print(f'Fourier mean:       {mdl_fs.mean()}')
-    print(f'Simulated mean:     {mdl_sim.mean()}')
-    print(f'Exact mean:         {mdl_fs.mean(True)}')
-    print('\n')
+        return super().setUpClass()
 
-    if perc_err(mdl_fs.mean(), mdl_fs.mean(True)) < 1e-2:
-        return 0
-    else:
-        return 1
+    def test_ground_up(self):
+        '''Testing consistency of ground up FFT calculations vs exact.'''
+        lambd = self.frequency['properties'][0]
+        mdl = Agg_PoiFft(frequency=lambd, severity_distribution=self.severity)
+        mdl.compile_aggregate_distribution()
 
+        fft_mean = mdl.mean()
+        exact_mean = mdl.mean(True)
 
-def layer_test():
-    print("Layer test...")
+        self.assertAlmostEqual(percentage_error(fft_mean, exact_mean), 0.0, 2)
 
-    mdl_fs = Agg_PoiFft(frequency=pois_freq, severity_distribution=severity)
-    mdl_sim = AggSim(frequency, severity)
+    def test_layer(self):
+        '''Testing consistency of calculations in layer between fft and exact.'''
+        lambd = self.frequency['properties'][0]
+        mdl = Agg_PoiFft(frequency=lambd, severity_distribution=self.severity)
 
-    mdl_fs.setup_layer(excess=3.0, limit=10.0)
-    mdl_sim.setup_layer(excess=3.0, limit=10.0)
+        mdl.setup_layer(*self.layer)
+        mdl.compile_aggregate_distribution()
 
-    mdl_fs.compile_aggregate_distribution()
-    mdl_sim.compile_aggregate_distribution()
+        fft_mean = mdl.mean()
+        exact_mean = mdl.mean(True)
 
-    print(f'Fourier mean:       {mdl_fs.mean()}')
-    print(f'Simulated mean:     {mdl_sim.mean()}')
-    print(f'Exact mean:         {mdl_fs.mean(True)}')
-    print('\n')
+        self.assertAlmostEqual(percentage_error(fft_mean, exact_mean), 0.0, 2)
 
-    if perc_err(mdl_fs.mean(), mdl_fs.mean(True)) < 1e-2:
-        return 0
-    else:
-        return 1
+    def test_variance(self):
+        '''Test consistency of calcs for variance between FFT and exact.'''
+        lambd = self.frequency['properties'][0]
+        mdl = Agg_PoiFft(frequency=lambd, severity_distribution=self.severity)
 
+        mdl.setup_layer(*self.layer)
+        mdl.compile_aggregate_distribution()
 
-def agg_lim_test():
-    print("Agg lim test...")
-    print("Note: no theoretical test possible - compare sim and fft")
-    print("Sims have greater error chances, so bound check increased")
+        fft_var = mdl.var()
+        exact_var = mdl.var(True)
 
-    mdl_fs = Agg_PoiFft(frequency=pois_freq, severity_distribution=severity)
-    mdl_sim = AggSim(frequency, severity)
-
-    mdl_fs.setup_layer(excess=5.0, limit=5.0)
-    mdl_fs.setup_agg_limit(agg_limit=8.5)
-    mdl_sim.setup_layer(excess=5.0, limit=5.0, agg_limit=8.5)
-
-    mdl_fs.compile_aggregate_distribution()
-    mdl_sim.compile_aggregate_distribution()
-
-    print(f'Fourier mean:       {mdl_fs.mean()}')
-    print(f'Simulated mean:     {mdl_sim.mean()}')
-    print('\n')
-
-    if perc_err(mdl_fs.mean(), mdl_sim.mean()) < 0.1:
-        return 0
-    else:
-        return 1
-
-
-def variance_test():
-    print("Variance test...")
-
-    mdl_fs = Agg_PoiFft(frequency=pois_freq, severity_distribution=severity)
-    mdl_sim = AggSim(frequency, severity)
-
-    mdl_fs.setup_layer(excess=3.0, limit=10.0)
-    mdl_sim.setup_layer(excess=3.0, limit=10.0)
-
-    mdl_fs.compile_aggregate_distribution()
-    mdl_sim.compile_aggregate_distribution()
-
-    print(f'Fourier variance:   {mdl_fs.var()}')
-    print(f'Simulated variance: {mdl_sim.var()}')
-    print(f'Exact variance:     {mdl_fs.var(True)}')
-    print('\n')
-
-    if perc_err(mdl_fs.var(), mdl_fs.var(True)) < 1e-2:
-        return 0
-    else:
-        return 1
+        self.assertAlmostEqual(percentage_error(fft_var, exact_var), 0.0, 2)
 
 
 if __name__ == '__main__':
-    exit_codes = 0
-    exit_codes += ground_up_test()
-    exit_codes += layer_test()
-    exit_codes += agg_lim_test()
-    exit_codes += variance_test()
-
-    if exit_codes <= 1:
-        print("All tests passed.")
+    unittest.main()
