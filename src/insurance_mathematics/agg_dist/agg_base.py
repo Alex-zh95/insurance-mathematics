@@ -38,7 +38,6 @@ class AggregateDistribution():
     '''
     frequency: dict
     severity: dict
-    
     M: float
     h: float
 

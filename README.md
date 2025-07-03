@@ -35,7 +35,7 @@ $$\text{NB}\left(n, \frac{\alpha p}{1-p+\alpha p} \right)$$
 
 Additional advantages of using the Fourier transform is that it generates a characteristic function, which can be much easier to modify when it comes to algebra of random variables. This is motivates the creation of a simplified capital model that can be constructed from financial documents for the purposes of reinsurance, described in more detail [below](#further-stochastic-models).
 
-## Simulations
+### Simulations
 
 In the [`AggSim`](pkg/src/agg_sim.py) module, aggregate distributions are created through simulation. The basic structure is:
 

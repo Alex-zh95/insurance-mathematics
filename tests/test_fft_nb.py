@@ -11,8 +11,10 @@ import numpy as np
 
 import unittest
 
+
 def percentage_error(observed: float, expected: float) -> float:
     return np.abs(observed - expected) / expected
+
 
 class Test_FFT_NB(unittest.TestCase):
     frequency: dict

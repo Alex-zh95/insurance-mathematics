@@ -40,16 +40,23 @@ class AggSim(AggregateDistribution):
 
     Call compile_aggregate_distribution() to generate the aggregate distribution.
     '''
+    n_sims: int
+    xs: float
+    lim: float
+    agg_d: float
+    agg_l: float
+    parallel: bool
 
     def __init__(
-            self,
-            frequency_distribution: dict,
-            severity_distribution: dict,
-            n: int = 100000,
-            excess: float = 0,
-            limit: float | None = None,
-            agg_excess: float = 0,
-            agg_limit: float | None = None
+        self,
+        frequency_distribution: dict,
+        severity_distribution: dict,
+        n: int = 100000,
+        excess: float = 0,
+        limit: float | None = None,
+        agg_excess: float = 0,
+        agg_limit: float | None = None,
+        parallel: bool = True
     ):
         super().__init__(frequency_distribution, severity_distribution)
         self.n_sims = n
@@ -58,6 +65,7 @@ class AggSim(AggregateDistribution):
         self.lim = limit
         self.agg_d = agg_excess
         self.agg_l = agg_limit
+        self.parallel = parallel
 
     def _generate_severities(self, freq):
         '''
@@ -83,7 +91,7 @@ class AggSim(AggregateDistribution):
 
         n_losses = self.frequency['dist'].rvs(*self.frequency['properties'], size=self.n_sims)
 
-        parallel_pool = Parallel(n_jobs=-1)
+        parallel_pool = Parallel(n_jobs=-1 if self.parallel else 1)
         delayed_generate_severities = (delayed(self._generate_severities)(n) for n in n_losses)
 
         self.losses = np.sort(parallel_pool(delayed_generate_severities))
