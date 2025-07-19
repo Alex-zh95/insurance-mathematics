@@ -8,20 +8,14 @@ from insurance_mathematics.stochastic.jump_diffusion import MertonJump_CompoundP
 # Params
 pois_freq = 0.5
 
-frequency = {
-    'dist': stats.poisson,
-    'properties': [pois_freq]
-}
+frequency = {"dist": stats.poisson, "properties": [pois_freq]}
 
-severity = {
-    'dist': stats.lognorm,
-    'properties': [1.2, 0.0, 7.8]
-}
+severity = {"dist": stats.lognorm, "properties": [1.2, 0.0, 7.8]}
 
 # Set up the jump distribution
 jump_mdl = Agg_PoiFft(frequency=pois_freq, severity_distribution=severity)
 jump_mdl.compile_aggregate_distribution()
-print(f'Fourier mean for jump:      {jump_mdl.mean():,.3f}')
+print(f"Fourier mean for jump:      {jump_mdl.mean():,.3f}")
 
 # Plot probability against lr
 lrs = np.linspace(0.4, 1.2, 100)
@@ -46,15 +40,15 @@ for lr in lrs:
 # Plot graph
 fig, ax = plt.subplots(1, 2)
 fig.set_size_inches(12, 8)
-ax[0].plot(lrs, pExers, label='Sig=0.15')
-ax[0].plot(lrs, pExers2, label='Sig=0.25')
-ax[0].set_xlabel('Loss ratio')
-ax[0].set_ylabel('Exercise probability')
+ax[0].plot(lrs, pExers, label="Sig=0.15")
+ax[0].plot(lrs, pExers2, label="Sig=0.25")
+ax[0].set_xlabel("Loss ratio")
+ax[0].set_ylabel("Exercise probability")
 ax[0].grid()
-ax[1].plot(lrs, pCall, label='Sig=0.15')
-ax[1].plot(lrs, pCall2, label='Sig=0.25')
-ax[1].set_xlabel('Loss ratio')
-ax[1].set_ylabel('Call price')
+ax[1].plot(lrs, pCall, label="Sig=0.15")
+ax[1].plot(lrs, pCall2, label="Sig=0.25")
+ax[1].set_xlabel("Loss ratio")
+ax[1].set_ylabel("Call price")
 ax[1].grid()
 ax[1].legend()
 fig.show()
